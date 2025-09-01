@@ -136,10 +136,15 @@
     // Longer start platform (depth = 6) + fair first platform placed closer
     const startPlat = makePlatform(3.0, 0.3, 6.0, 0, 0.6, 0, platMatA); // centered at z=0; front edge at ~-3
     const firstPlat = makePlatform(2.4, 0.3, 2.2, 0.0, 1.0, -5.8, platMatB); // ~2.8 units ahead of the start’s edge
-const d = 3.0;         // depth 3.0 (instead of 2.0)
-const frontEdge = -9.6; // keep where it was
-const centerZ = frontEdge + d/2; // new center so front stays put
-const secondPlat = makePlatform(2.2, 0.3, d, 0.1, 1.1, centerZ, platMatA);
+const oldDepth   = 2.0;
+const extraFront = 1.5;        // grow forward by 1.0
+const backEdge   = -7.6;       // keep this fixed (from your original)
+const newDepth   = oldDepth + extraFront;          // 3.0
+const newCenterZ = backEdge - newDepth / 2;        // -7.6 - 1.5 = -9.1
+
+// replace the old secondPlat line with:
+const secondPlat = makePlatform(2.2, 0.3, newDepth, 0.1, 1.1, newCenterZ, platMatA);
+
 
 
 
