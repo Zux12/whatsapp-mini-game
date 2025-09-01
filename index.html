@@ -17,6 +17,7 @@
   <style>
     :root { --bg:#0e1024; --fg:#e9ecff; --muted:#8b90b6; --accent:#69e08a; }
     html,body{height:100%; margin:0; background:radial-gradient(120vmax 120vmax at 50% -20%, #161a3a, var(--bg) 55%); color:var(--fg); font-family:system-ui,-apple-system,Segoe UI,Inter,Roboto,Arial,sans-serif; overflow:hidden;}
+    /* Safari-safe hide */
     [hidden]{ display:none !important; }
 
     #hud{
@@ -87,8 +88,7 @@
     document.body.appendChild(renderer.domElement);
 
     // Lights
-    const hemi = new THREE.HemisphereLight(0xcad8ff, 0x202535, 1.2);
-    scene.add(hemi);
+    scene.add(new THREE.HemisphereLight(0xcad8ff, 0x202535, 1.2));
     const dir = new THREE.DirectionalLight(0xffffff, 0.9);
     dir.position.set(5,8,2);
     scene.add(dir);
@@ -102,77 +102,21 @@
     ground.position.y = -20;
     scene.add(ground);
 
-    // ------- Player: Blockman -------
-    const playerGroup = new THREE.Group();
-
-    // Palette
-    const torsoCol = 0x38e1b6;   // teal
-    const legCol   = 0x8b6cff;   // purple
-    const armCol   = 0xffa24d;   // orange
-    const headCol  = 0xfff1cc;   // warm cream
-    const hairCol  = 0x1b2038;   // dark hair
-    const backEye  = 0x99a3ff;   // soft blue back-eyes
-
-    // Body
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.0, 0.4),
-      new THREE.MeshStandardMaterial({ color: torsoCol, roughness: 0.45, metalness: 0.08 }));
-    body.position.y = 0.8;
-
-    // Head
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5),
-      new THREE.MeshStandardMaterial({ color: headCol, roughness: 0.55, metalness: 0.05 }));
-    head.position.y = 1.35;
-
-    // Front eyes
-    const eyeMatFront = new THREE.MeshStandardMaterial({ color: 0x1c2038, roughness: 0.4, metalness: 0.1 });
-    const eyeL = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, 0.07), eyeMatFront);
-    const eyeR = eyeL.clone();
-    eyeL.position.set(-0.12, 1.40, 0.26);
-    eyeR.position.set( 0.12, 1.40, 0.26);
-
-    // Hair cap + stripe
-    const hairCap = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.28, 0.32),
-      new THREE.MeshStandardMaterial({ color: hairCol, roughness: 0.6, metalness: 0.08 }));
-    hairCap.position.set(0, 1.46, -0.05);
-
-    const hairStripe = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.06, 0.4),
-      new THREE.MeshStandardMaterial({ color: hairCol, roughness: 0.6, metalness: 0.08 }));
-    hairStripe.position.set(0, 1.52, -0.02);
-
-    // Back-of-head “eyes”
-    const backEyeMat = new THREE.MeshStandardMaterial({ color: backEye, roughness: 0.35, metalness: 0.15 });
-    const backEyeL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.06), backEyeMat);
-    const backEyeR = backEyeL.clone();
-    backEyeL.position.set(-0.12, 1.40, -0.26);
-    backEyeR.position.set( 0.12, 1.40, -0.26);
-
-    // Arms
-    const armL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.7, 0.18),
-      new THREE.MeshStandardMaterial({ color: armCol, roughness: 0.45, metalness: 0.08 }));
-    const armR = armL.clone();
-    armL.position.set(-0.44, 0.85, 0);
-    armR.position.set( 0.44, 0.85, 0);
-
-    // Legs
-    const legL = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.6, 0.22),
-      new THREE.MeshStandardMaterial({ color: legCol, roughness: 0.5, metalness: 0.05 }));
-    const legR = legL.clone();
-    legL.position.set(-0.18, 0.3, 0);
-    legR.position.set( 0.18, 0.3, 0);
-
-    playerGroup.add(body, head, eyeL, eyeR, hairCap, hairStripe, backEyeL, backEyeR, armL, armR, legL, legR);
-    scene.add(playerGroup);
+    // ------- Player: Sphere -------
+    const playerRadius = 0.4;
+    const player = new THREE.Mesh(
+      new THREE.SphereGeometry(playerRadius, 24, 20),
+      new THREE.MeshStandardMaterial({ color: 0xe6e7ff, roughness: 0.4, metalness: 0.0 })
+    );
+    scene.add(player);
 
     // Shadow
     const shadow = new THREE.Mesh(
-      new THREE.CircleGeometry(0.6, 24),
+      new THREE.CircleGeometry(0.55, 24),
       new THREE.MeshBasicMaterial({ color: 0x000000, transparent:true, opacity:0.25 })
     );
     shadow.rotation.x = -Math.PI/2;
     scene.add(shadow);
-
-    // Player extents for landing
-    const playerHalf = { x: 0.3, y: 0.8, z: 0.3 };
 
     // ------- Platforms -------
     const platforms = [];
@@ -189,20 +133,19 @@
       return mesh;
     }
 
-    // Start platform
-    const startPlat = makePlatform(4.0, 0.3, 8.0, 0, 0.6, 0, platMatA);
-    // First gap is **smaller now**; first “real” platform placed manually closer
-    const firstPlat = makePlatform(2.4, 0.3, 2.2, 0.1, 1.0, -6.0, platMatB);
+    // Longer start platform (depth = 6) + fair first platform placed closer
+    const startPlat = makePlatform(3.0, 0.3, 6.0, 0, 0.6, 0, platMatA); // centered at z=0; front edge at ~-3
+    const firstPlat = makePlatform(2.4, 0.3, 2.2, 0.0, 1.0, -5.8, platMatB); // ~2.8 units ahead of the start’s edge
 
-    // Generate more ahead (moderate spacing)
-    let seedZ = -9.0; // was -16 (too far) — now closer
-    function addChunk(n=8){
+    // Generate more ahead with moderate spacing
+    let seedZ = -9.0; // continue from just past the first platform
+    function addChunk(n=10){
       for(let i=0;i<n;i++){
         const w = THREE.MathUtils.randFloat(1.5, 3.0);
         const d = THREE.MathUtils.randFloat(1.8, 2.5);
         const y = THREE.MathUtils.randFloat(0.6, 1.6);
         const x = THREE.MathUtils.randFloatSpread(2.2);
-        seedZ -= THREE.MathUtils.randFloat(2.6, 3.6); // tighter spacing
+        seedZ -= THREE.MathUtils.randFloat(2.6, 3.6);
         const mat = mats[(Math.random()*mats.length)|0];
         makePlatform(w, 0.3, d, x, y, seedZ, mat);
       }
@@ -216,12 +159,11 @@
       best: parseInt(localStorage.getItem('obby3d_best') || '0',10),
       zSpeed: 3.6,
       gravity: -20,
-      jumpVelocity: 8.9,
+      jumpVelocity: 8.6,
       vy: 0,
-      x: 0, y: 0, z: 3.0,
+      x: 0, y: 0, z: 2.0,
       onPlatform: true,
-      lastTime: 0,
-      legPhase: 0
+      lastTime: 0
     };
 
     // HUD
@@ -256,8 +198,8 @@
 
     function placeOnStart(){
       state.x = 0;
-      state.z = 3.0; // near camera edge of start platform
-      state.y = platformTopY(startPlat) + playerHalf.y;
+      state.z = 2.0; // comfortably on the start platform
+      state.y = platformTopY(startPlat) + playerRadius;
       state.vy = 0;
       state.onPlatform = true;
     }
@@ -265,15 +207,14 @@
     function resetGame(){
       state.running = true;
       state.score = 0; scoreEl.textContent = '0';
-      state.zSpeed = 3.6; state.gravity = -20; state.jumpVelocity = 8.9;
+      state.zSpeed = 3.6; state.gravity = -20; state.jumpVelocity = 8.6;
       state.lastTime = performance.now();
-      state.legPhase = 0;
 
-      // Rebuild: start + firstPlat + chunks
+      // Rebuild platforms with same initial layout
       for (const p of platforms) scene.remove(p);
       platforms.length = 0;
-      makePlatform(4.0, 0.3, 8.0, 0, 0.6, 0, platMatA);
-      makePlatform(2.4, 0.3, 2.2, 0.1, 1.0, -6.0, platMatB);
+      makePlatform(3.0, 0.3, 6.0, 0, 0.6, 0, platMatA);
+      makePlatform(2.4, 0.3, 2.2, 0.0, 1.0, -5.8, platMatB);
       seedZ = -9.0;
       addChunk(14);
 
@@ -310,7 +251,7 @@
 
     playBtn.onclick = resetGame;
     restartBtn.onclick = resetGame;
-    howBtn.onclick = () => alert("Tap/Space to jump.\nLong start platform. First platform is now closer.\nNo hovering at the edge—mind the gap!");
+    howBtn.onclick = () => alert("Tap/Space to jump.\nLonger first platform gives you time.\nFirst jump is fair.\nReach the next platforms to score!");
 
     // Share
     shareBtn.onclick = () => {
@@ -323,71 +264,42 @@
     function updateCamera(dt){
       const target = new THREE.Vector3(state.x, state.y + 2.2, state.z + 8.5);
       camera.position.lerp(target, Math.min(1, dt*2.5));
-      camera.lookAt(state.x, state.y + 0.9, state.z - 2.0);
+      camera.lookAt(state.x, state.y + 0.6, state.z - 2.0);
     }
 
-    // STRICT landing with edge margin (prevents “hover” past edge)
-    const EDGE_MARGIN = 0.03; // shrink landing area near edges
-    function checkLanding(px, py, pz){
+    // Sphere-over-box landing
+    function checkLanding(cx, cy, cz){
       let landed = false;
-      const feetY = py - playerHalf.y;
+      const feetY = cy - playerRadius;
 
       for (let i=0;i<platforms.length;i++){
         const p = platforms[i];
         const w = p.userData.w, h = p.userData.h, d = p.userData.d;
-        const minX = p.position.x - w/2 + EDGE_MARGIN;
-        const maxX = p.position.x + w/2 - EDGE_MARGIN;
+        const minX = p.position.x - w/2, maxX = p.position.x + w/2;
         const topY = p.position.y + h/2 + 0.001;
-        const minZ = p.position.z - d/2 + EDGE_MARGIN;
-        const maxZ = p.position.z + d/2 - EDGE_MARGIN;
+        const minZ = p.position.z - d/2, maxZ = p.position.z + d/2;
 
-        // must be strictly within shrunken XZ bounds
-        const withinXZ = (px >= minX && px <= maxX && pz >= minZ && pz <= maxZ);
+        // Strict within-bounds check (prevents edge hovering)
+        const withinXZ = (cx >= minX && cx <= maxX && cz >= minZ && cz <= maxZ);
 
         if (withinXZ && state.vy <= 0){
-          const tolerance = 0.28; // small snap window
+          const tolerance = 0.32; // vertical snap window
           if (feetY <= topY + 0.02 && feetY >= (topY - tolerance)){
-            state.y = topY + playerHalf.y;
+            state.y = topY + playerRadius;
             state.vy = 0;
             landed = true;
           }
         }
 
-        // Score when we pass platform's front edge (movement toward -Z)
-        if (!p.userData.passed && pz < (p.position.z - d/2 - 0.2)){
+        // Score when passing front edge
+        if (!p.userData.passed && cz < (p.position.z - d/2 - 0.2)){
           p.userData.passed = true;
           state.score += 1; scoreEl.textContent = String(state.score);
           state.zSpeed = Math.min(7.5, state.zSpeed + 0.06);
           if ((state.score % 6) === 0) addChunk(6);
         }
-
-        // If we've crossed the front edge even slightly, force a fall (no hovering)
-        if (pz < (p.position.z - d/2)) {
-          // ensure we're not re-clamped accidentally next frame
-          if (landed && feetY > topY + 0.01) landed = false;
-          if (state.vy > -1) state.vy = -1.2; // nudge downward
-        }
       }
       return landed;
-    }
-
-    // Blockman anim
-    function animateBlockMan(dt){
-      state.legPhase += dt * (state.onPlatform ? (2.6 + state.zSpeed*0.35) : 6.0);
-      const legSwing = state.onPlatform ? Math.sin(state.legPhase) * 0.55 : 0.12;
-      const armSwing = state.onPlatform ? Math.sin(state.legPhase + Math.PI) * 0.65 : 0.18;
-      const bob      = state.onPlatform ? Math.abs(Math.sin(state.legPhase))*0.035 : 0.0;
-
-      body.position.y = 0.8 + bob;
-      head.position.y = 1.35 + bob * 0.6;
-
-      armL.rotation.x = armSwing;
-      armR.rotation.x = -armSwing;
-      legL.rotation.x = legSwing;
-      legR.rotation.x = -legSwing;
-
-      const targetTilt = state.onPlatform ? 0.08 : -0.05;
-      playerGroup.rotation.x = THREE.MathUtils.lerp(playerGroup.rotation.x, targetTilt, 0.15);
     }
 
     // Main loop
@@ -405,12 +317,12 @@
         state.onPlatform = checkLanding(state.x, state.y, state.z);
 
         if (wasOn && !state.onPlatform && state.vy >= 0) {
-          state.vy = -0.02; // ensure we start falling immediately after edge
+          state.vy = -0.02; // nudge to start falling immediately after edge
         }
 
         if (!state.onPlatform && state.y < -4) endGame();
 
-        // Cull far-behind platforms
+        // Cull far-behind platforms (perf)
         for (let i=platforms.length-1; i>=0; i--){
           if (platforms[i].position.z - state.z > 120){
             scene.remove(platforms[i]);
@@ -419,11 +331,12 @@
         }
       }
 
-      playerGroup.position.set(state.x, state.y, state.z);
-      animateBlockMan(dt);
+      // Mesh transforms
+      player.position.set(state.x, state.y, state.z);
+      player.rotation.z += state.running ? 0.02 + state.zSpeed*0.002 : 0.0;
 
-      shadow.position.set(state.x, Math.max(0.05, state.y-0.85), state.z);
-      const shadowScale = Math.max(0.35, 1.1 - (state.y-0.6)*0.25);
+      shadow.position.set(state.x, Math.max(0.05, state.y-0.45), state.z);
+      const shadowScale = Math.max(0.35, 1.0 - (state.y-0.6)*0.25);
       shadow.scale.set(shadowScale, shadowScale, 1);
 
       updateCamera(dt);
@@ -439,7 +352,7 @@
     });
 
     placeOnStart();
-    showOverlay("Long start platform. First platform is now closer. No edge-hover — mind the gap! Tap/Space to jump.");
+    showOverlay("Longer first platform. First jump is closer. Tap/Space to play!");
   </script>
 </body>
 </html>
