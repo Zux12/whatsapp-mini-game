@@ -5,9 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Obby 3D — Mini</title>
 
+  <!-- Happy font -->
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+
   <!-- Social preview -->
   <meta property="og:title" content="Obby 3D — Mini" />
-  <meta property="og:description" content="Tap/Space to jump across floating platforms. How far can you go?" />
+  <meta property="og:description" content="Tap/Space to jump across sunny platforms. How far can you go?" />
   <meta property="og:image" content="https://zux12.github.io/whatsapp-mini-game/preview.png" />
   <meta property="og:url" content="https://zux12.github.io/whatsapp-mini-game/" />
   <meta name="twitter:card" content="summary_large_image" />
@@ -15,35 +18,53 @@
   <link rel="icon" href="favicon.ico" />
 
   <style>
-    :root { --bg:#0e1024; --fg:#e9ecff; --muted:#8b90b6; --accent:#69e08a; }
-    html,body{height:100%; margin:0; background:#0e1024; color:var(--fg); font-family:system-ui,-apple-system,Segoe UI,Inter,Roboto,Arial,sans-serif; overflow:hidden;}
-    /* Safari-safe hide */
-    [hidden]{ display:none !important; }
+    :root{
+      --fg:#162233;            /* text */
+      --muted:#506176;
+      --accent:#38d27d;        /* play/primary */
+      --accent2:#5aa7ff;       /* secondary */
+      --card:#ffffffcc;        /* happy glass */
+      --cardBorder:#ffffffee;
+      --shadow:0 20px 60px rgba(24,54,88,.25);
+    }
+    html,body{height:100%; margin:0; background:#bfe7ff; color:var(--fg);
+      font-family:'Fredoka', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      overflow:hidden;}
+    [hidden]{display:none!important;}
 
     #hud{
-      position:fixed; inset:0; pointer-events:none; display:flex; flex-direction:column; justify-content:space-between;
-      padding:12px;
+      position:fixed; inset:0; pointer-events:none;
+      display:flex; flex-direction:column; justify-content:space-between; padding:12px;
     }
     .topbar{display:flex; gap:8px; align-items:center; justify-content:space-between;}
-    .pill{pointer-events:auto; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); padding:8px 12px; border-radius:999px; font-variant-numeric:tabular-nums;}
-    .btn{pointer-events:auto; border:0; padding:12px 16px; border-radius:12px; cursor:pointer; font-weight:700; background:var(--accent); color:#072114; box-shadow:0 10px 24px rgba(106,224,138,.35);}
-    .btn.secondary{background:#2d335e; color:#dfe3ff; box-shadow:none}
+    .pill{
+      pointer-events:auto; background:#ffffffdd; border:1px solid #fff;
+      padding:8px 12px; border-radius:999px; font-variant-numeric:tabular-nums;
+      box-shadow:0 6px 16px rgba(31,105,163,.15);
+    }
+    .btn{
+      pointer-events:auto; border:0; padding:12px 16px; border-radius:14px; cursor:pointer;
+      font-weight:700; box-shadow:0 10px 24px rgba(56,210,125,.25);
+      background:var(--accent); color:#0c3a22;
+    }
+    .btn.secondary{
+      background:var(--accent2); color:#072345; box-shadow:0 10px 24px rgba(90,167,255,.25);
+    }
 
+    /* Happy overlay card */
     #overlay{
       position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
-      background:linear-gradient(180deg, rgba(10,12,30,.72), rgba(10,12,30,.55));
-      backdrop-filter: blur(4px);
+      backdrop-filter: blur(6px);
       z-index: 10;
     }
     .card{
-      width:min(92vw,540px); border-radius:20px; padding:16px; text-align:center;
-      background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12);
-      box-shadow:0 20px 60px rgba(0,0,0,0.45);
+      width:min(92vw,640px); border-radius:28px; padding:18px; text-align:center;
+      background:var(--card); border:2px solid var(--cardBorder); box-shadow:var(--shadow);
     }
-    h1{margin:8px 0 6px; font-size:22px}
-    p{margin:8px 0; color:var(--muted)}
-    .row{display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:10px}
-    #hint{font-size:13px}
+    h1{margin:8px 0 6px; font-size:28px; letter-spacing:.2px}
+    p{margin:8px 0; color:var(--muted); font-size:16px}
+    .row{display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:12px}
+    #hint{font-size:14px}
   </style>
 </head>
 <body>
@@ -61,7 +82,7 @@
   <div id="overlay">
     <div class="card">
       <h1>Obby 3D — Mini</h1>
-      <p id="summary">Jump across floating platforms. Don’t fall!</p>
+      <p id="summary">Sunny skies, fluffy clouds, splashy sea. Jump platform to platform!</p>
       <div class="row">
         <button id="playBtn" class="btn">▶️ Play</button>
         <button id="restartBtn" class="btn" style="display:none">↻ Restart</button>
@@ -74,30 +95,29 @@
   <script type="module">
     import * as THREE from 'https://unpkg.com/three@0.158.0/build/three.module.js';
 
-    // ------- Scene -------
+    // ---------- Scene ----------
     const scene = new THREE.Scene();
-
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 1200);
     camera.position.set(0, 4.5, 10);
 
     const renderer = new THREE.WebGLRenderer({ antialias:true });
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setSize(innerWidth, innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    // Lights
-    scene.add(new THREE.HemisphereLight(0xcad8ff, 0x202535, 1.25));
-    const dir = new THREE.DirectionalLight(0xffffff, 0.9);
-    dir.position.set(5,8,2);
-    scene.add(dir);
+    // Lights (brighter daylight)
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x8fc7ff, 1.2));
+    const sunLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    sunLight.position.set(10,14,6);
+    scene.add(sunLight);
 
-    // ------- Sky (gradient skydome via simple shader) -------
+    // ---------- Sky: bright gradient dome ----------
     const skyUniforms = {
-      topColor:    { value: new THREE.Color(0x0b0f2f) }, // zenith deep blue
-      bottomColor: { value: new THREE.Color(0x565cf2) }, // horizon violet/indigo
+      topColor:    { value: new THREE.Color(0x79c9ff) }, // zenith light blue
+      bottomColor: { value: new THREE.Color(0xdaf1ff) }, // horizon pale
     };
     const sky = new THREE.Mesh(
-      new THREE.SphereGeometry(500, 32, 20),
+      new THREE.SphereGeometry(600, 32, 20),
       new THREE.ShaderMaterial({
         uniforms: skyUniforms,
         vertexShader: `
@@ -112,9 +132,8 @@
           uniform vec3 topColor;
           uniform vec3 bottomColor;
           void main(){
-            // Map world Y into 0..1 range (horizon ≈ y=0)
-            float h = clamp((vWorldPosition.y + 20.0) / 80.0, 0.0, 1.0);
-            vec3 col = mix(bottomColor, topColor, smoothstep(0.0, 1.0, h));
+            float h = clamp((vWorldPosition.y + 30.0) / 120.0, 0.0, 1.0);
+            vec3 col = mix(bottomColor, topColor, h);
             gl_FragColor = vec4(col, 1.0);
           }`,
         side: THREE.BackSide,
@@ -123,72 +142,128 @@
     );
     scene.add(sky);
 
-    // ------- Sea (big waving plane) -------
+    // ---------- Sun (sprite with soft glow) ----------
+    const sunCanvas = document.createElement('canvas');
+    sunCanvas.width = sunCanvas.height = 256;
+    const sctx = sunCanvas.getContext('2d');
+    const grd = sctx.createRadialGradient(128,128,10,128,128,120);
+    grd.addColorStop(0, 'rgba(255,245,200,1)');
+    grd.addColorStop(0.4, 'rgba(255,230,120,0.9)');
+    grd.addColorStop(1, 'rgba(255,230,120,0)');
+    sctx.fillStyle = grd; sctx.beginPath(); sctx.arc(128,128,120,0,Math.PI*2); sctx.fill();
+    const sunTex = new THREE.CanvasTexture(sunCanvas);
+    const sun = new THREE.Sprite(new THREE.SpriteMaterial({ map: sunTex, depthWrite:false, depthTest:false, transparent:true }));
+    sun.scale.set(18,18,1);
+    sun.position.set(-18, 12, -30);
+    scene.add(sun);
+
+    // ---------- Clouds (billboard sprites) ----------
+    function makeCloudTexture(){
+      const c = document.createElement('canvas');
+      c.width = c.height = 256;
+      const ctx = c.getContext('2d');
+      ctx.clearRect(0,0,256,256);
+      // draw 3 soft blobs
+      function blob(x,y,r){
+        const g = ctx.createRadialGradient(x,y, r*0.3, x,y, r);
+        g.addColorStop(0,'rgba(255,255,255,0.95)');
+        g.addColorStop(1,'rgba(255,255,255,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+      }
+      blob(110,140,90); blob(150,120,70); blob(80,120,70);
+      return new THREE.CanvasTexture(c);
+    }
+    const cloudTex = makeCloudTexture();
+    const clouds = [];
+    function addCloud(x,y,z,scale=1){
+      const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, transparent:true, depthWrite:false }));
+      spr.position.set(x,y,z);
+      spr.scale.set(20*scale,12*scale,1);
+      clouds.push(spr); scene.add(spr);
+    }
+    // a few layers of clouds
+    for(let i=0;i<14;i++){
+      addCloud(THREE.MathUtils.randFloatSpread(30), THREE.MathUtils.randFloat(6,12), -THREE.MathUtils.randFloat(20,120), THREE.MathUtils.randFloat(0.6,1.2));
+    }
+
+// ---------- Birds (sprites) ----------
+function makeBirdTexture(){
+  const c=document.createElement('canvas'); c.width=c.height=64;
+  const ctx=c.getContext('2d'); ctx.fillStyle='#fff';
+  ctx.beginPath(); ctx.moveTo(10,32); ctx.quadraticCurveTo(32,10,54,32);
+  ctx.strokeStyle='#fff'; ctx.lineWidth=4; ctx.stroke();
+  return new THREE.CanvasTexture(c);
+}
+const birdTex=makeBirdTexture();
+const birds=[];
+function addBird(){
+  const spr=new THREE.Sprite(new THREE.SpriteMaterial({ map:birdTex, transparent:true, color:0xeeeeee }));
+  spr.position.set(-20,THREE.MathUtils.randFloat(6,14),-THREE.MathUtils.randFloat(30,80));
+  spr.scale.set(3,2,1);
+  birds.push(spr); scene.add(spr);
+}
+for(let i=0;i<4;i++) addBird();
+
+    
+    // ---------- Daylight Sea (brighter) ----------
     const seaUniforms = {
       time: { value: 0 },
-      baseColor: { value: new THREE.Color(0x1341a1) }, // deep blue
-      foamColor: { value: new THREE.Color(0x88c1ff) }  // highlight
+      baseColor: { value: new THREE.Color(0x2ea8ff) },
+      foamColor: { value: new THREE.Color(0xffffff) }
     };
     const sea = new THREE.Mesh(
-      // Segments kept moderate for mobile performance; increase for smoother waves
-      new THREE.PlaneGeometry(1000, 1000, 128, 128),
+      new THREE.PlaneGeometry(1000,1000,128,128),
       new THREE.ShaderMaterial({
         uniforms: seaUniforms,
         vertexShader: `
           uniform float time;
-          varying vec2 vUv;
-          varying float vHeight;
+          varying float vH;
           void main(){
-            vUv = uv;
             vec3 pos = position;
-            // Two gentle sine waves (pre-rotation)
-            float w1 = sin((pos.x * 0.06) + time * 0.8) * 0.25;
-            float w2 = cos((pos.y * 0.05) - time * 0.55) * 0.20;
-            pos.z += w1 + w2;   // "z" here becomes "y" after we rotate plane below
-            vHeight = w1 + w2;
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+            float w1 = sin((pos.x * 0.05) + time * 0.7) * 0.22;
+            float w2 = cos((pos.y * 0.045) - time * 0.55) * 0.18;
+            pos.z += w1 + w2;
+            vH = w1 + w2;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(pos,1.0);
           }`,
         fragmentShader: `
           uniform vec3 baseColor;
           uniform vec3 foamColor;
-          varying vec2 vUv;
-          varying float vHeight;
+          varying float vH;
           void main(){
-            // Color blend based on wave crest for a subtle shimmer
-            float f = smoothstep(-0.25, 0.35, vHeight);
-            vec3 col = mix(baseColor, foamColor, f * 0.25);
-            gl_FragColor = vec4(col, 1.0);
+            float f = smoothstep(-0.25, 0.35, vH);
+            vec3 col = mix(baseColor, foamColor, f*0.18);
+            gl_FragColor = vec4(col,1.0);
           }`,
-        transparent: false
       })
     );
-    sea.rotation.x = -Math.PI / 2; // lay flat on XZ
-    sea.position.y = -5;           // below platforms
+    sea.rotation.x = -Math.PI/2;
+    sea.position.y = -5;
     scene.add(sea);
 
-    // ------- Player: Sphere -------
+    // ---------- Player: Sphere ----------
     const playerRadius = 0.4;
     const player = new THREE.Mesh(
       new THREE.SphereGeometry(playerRadius, 24, 20),
-      new THREE.MeshStandardMaterial({ color: 0xe6e7ff, roughness: 0.4, metalness: 0.0 })
+      new THREE.MeshStandardMaterial({ color: 0xfffbef, roughness: 0.35, metalness: 0.05 })
     );
     scene.add(player);
 
-    // Shadow (fake)
+    // Shadow
     const shadow = new THREE.Mesh(
       new THREE.CircleGeometry(0.55, 24),
-      new THREE.MeshBasicMaterial({ color: 0x000000, transparent:true, opacity:0.25 })
+      new THREE.MeshBasicMaterial({ color: 0x000000, transparent:true, opacity:0.22 })
     );
     shadow.rotation.x = -Math.PI/2;
     scene.add(shadow);
 
-    // ------- Platforms & helpers -------
+    // ---------- Platforms (happy colors) ----------
     const platforms = [];
-    const platMatA = new THREE.MeshStandardMaterial({ color: 0x69e08a, roughness: 0.5, metalness: 0.05 });
-    const platMatB = new THREE.MeshStandardMaterial({ color: 0x52b8f2, roughness: 0.5, metalness: 0.05 });
-    const mats = [platMatA, platMatB];
+    const matMint = new THREE.MeshStandardMaterial({ color: 0x5cf2a5, roughness:0.45, metalness:0.08 });
+    const matBlue = new THREE.MeshStandardMaterial({ color: 0x66c3ff, roughness:0.45, metalness:0.08 });
+    const mats = [matMint, matBlue];
 
-    function makePlatform(w=2, h=0.3, d=2, x=0, y=0, z=0, mat=platMatA){
+    function makePlatform(w=2, h=0.3, d=2, x=0, y=0, z=0, mat=matMint){
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat.clone());
       mesh.position.set(x, y, z);
       mesh.userData = { w, h, d };
@@ -201,11 +276,10 @@
       const centerZ = (backEdgeZ + frontEdgeZ) / 2;
       return makePlatform(width, height, d, x, y, centerZ, mat);
     }
-    const frontEdgeOf = p => p.position.z - p.userData.d/2; // towards -Z
-    const backEdgeOf  = p => p.position.z + p.userData.d/2; // towards +Z
+    const frontEdgeOf = p => p.position.z - p.userData.d/2;
     const topYOf      = p => p.position.y + (p.userData.h || 0.3)/2 + 0.001;
 
-    // ------- Physics / State -------
+    // ---------- Physics / State ----------
     const state = {
       running:false,
       score:0,
@@ -218,30 +292,30 @@
       onPlatform: true,
       lastTime: 0
     };
-    const MAX_GAP = state.zSpeed * (2*state.jumpVelocity/Math.abs(state.gravity)) - 0.4; // ~2.7 safe
+    const MAX_GAP = state.zSpeed * (2*state.jumpVelocity/Math.abs(state.gravity)) - 0.4; // ~2.7
     const SAFE_GAP_MIN = 1.6, SAFE_GAP_MAX = Math.min(2.6, MAX_GAP);
 
-    // ------- Level layout (safe first jumps) -------
-    const startPlat = makePlatform(3.2, 0.3, 6.0, 0, 0.6, 0, platMatA);   // front ≈ -3.0
+    // ---------- Level layout (safe first jumps) ----------
+    const startPlat = makePlatform(3.4, 0.3, 6.2, 0, 0.7, 0, matMint);   // slightly bigger & higher
     const gap1 = 2.0;
     const firstBack = frontEdgeOf(startPlat) - gap1;
     const firstDepth = 2.2;
     const firstFront = firstBack - firstDepth;
-    const firstPlat = makePlatformByEdges(2.4, 0.3, firstBack, firstFront, 0.0, 1.0, platMatB);
+    const firstPlat = makePlatformByEdges(2.6, 0.3, firstBack, firstFront, 0.0, 1.1, matBlue);
 
     const gap2 = 2.2;
     const secondBack = frontEdgeOf(firstPlat) - gap2;
     const secondDepth = 2.2;
     const secondFront = secondBack - secondDepth;
-    const secondPlat = makePlatformByEdges(2.2, 0.3, secondBack, secondFront, 0.1, 1.05, platMatA);
+    const secondPlat = makePlatformByEdges(2.2, 0.3, secondBack, secondFront, 0.1, 1.05, matMint);
 
     let lastFront = frontEdgeOf(secondPlat);
     function addChunk(n=12){
       for (let i=0;i<n;i++){
         const gap = THREE.MathUtils.randFloat(SAFE_GAP_MIN, SAFE_GAP_MAX);
-        const w = THREE.MathUtils.randFloat(1.6, 3.0);
-        const d = THREE.MathUtils.randFloat(1.8, 2.5);
-        const y = THREE.MathUtils.randFloat(0.6, 1.5);
+        const w = THREE.MathUtils.randFloat(1.7, 3.2);
+        const d = THREE.MathUtils.randFloat(1.8, 2.6);
+        const y = THREE.MathUtils.randFloat(0.7, 1.6);
         const x = THREE.MathUtils.randFloatSpread(2.0);
 
         const backEdge = lastFront - gap;
@@ -254,7 +328,7 @@
     }
     addChunk(14);
 
-    // ------- HUD / overlay -------
+    // ---------- HUD / overlay ----------
     const scoreEl = document.getElementById('score');
     const bestEl  = document.getElementById('best');
     bestEl.textContent = String(state.best);
@@ -280,6 +354,7 @@
       overlay.style.pointerEvents = 'none';
     }
 
+    // Helpers
     function placeOnStart(){
       state.x = 0;
       state.z = 2.0;
@@ -287,21 +362,20 @@
       state.vy = 0;
       state.onPlatform = true;
     }
-
     function rebuildLevel(){
       for (const p of platforms) scene.remove(p);
       platforms.length = 0;
 
-      const s = makePlatform(3.2, 0.3, 6.0, 0, 0.6, 0, platMatA);
+      const s = makePlatform(3.4, 0.3, 6.2, 0, 0.7, 0, matMint);
       const g1 = 2.0, fd = 2.2;
       const fb = frontEdgeOf(s) - g1;
       const ff = fb - fd;
-      const f = makePlatformByEdges(2.4, 0.3, fb, ff, 0.0, 1.0, platMatB);
+      const f = makePlatformByEdges(2.6, 0.3, fb, ff, 0.0, 1.1, matBlue);
 
       const g2 = 2.2, sd = 2.2;
       const sb = frontEdgeOf(f) - g2;
       const sf = sb - sd;
-      const sp = makePlatformByEdges(2.2, 0.3, sb, sf, 0.1, 1.05, platMatA);
+      const sp = makePlatformByEdges(2.2, 0.3, sb, sf, 0.1, 1.05, matMint);
 
       lastFront = frontEdgeOf(sp);
       addChunk(14);
@@ -326,6 +400,8 @@
         bestEl.textContent = String(state.best);
       }
       showOverlay(`You fell into the sea! 🌊 Score ${state.score}. Best ${state.best}.`, true);
+      spawnSplash(state.x, state.z);
+
     }
 
     function jump(){
@@ -337,17 +413,17 @@
     }
 
     // Controls
-    window.addEventListener('keydown', e=>{
+    addEventListener('keydown', e=>{
       if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); jump(); }
     }, {passive:false});
-    window.addEventListener('pointerdown', e=>{
+    addEventListener('pointerdown', e=>{
       if (overlay.style.display !== 'none') return;
       jump();
     });
 
     playBtn.onclick = resetGame;
     restartBtn.onclick = resetGame;
-    howBtn.onclick = () => alert("Tap/Space to jump.\nFall into the sea to end the run.\nGaps are capped early so each jump is reachable.");
+    howBtn.onclick = () => alert("Tap/Space to jump.\nFall into the sea to end the run.\nSunny skies, safe early gaps. Have fun!");
 
     // Share
     shareBtn.onclick = () => {
@@ -363,7 +439,7 @@
       camera.lookAt(state.x, state.y + 0.6, state.z - 2.0);
     }
 
-    // Sphere-over-box landing
+    // Landing
     function checkLanding(cx, cy, cz){
       let landed = false;
       const feetY = cy - playerRadius;
@@ -375,19 +451,16 @@
         const topY = p.position.y + h/2 + 0.001;
         const minZ = p.position.z - d/2, maxZ = p.position.z + d/2;
 
-        // Strict within-bounds check (prevents edge hovering)
         const withinXZ = (cx >= minX && cx <= maxX && cz >= minZ && cz <= maxZ);
-
         if (withinXZ && state.vy <= 0){
-          const tolerance = 0.32; // vertical snap window
-          if (feetY <= topY + 0.02 && feetY >= (topY - tolerance)){
+          const tol = 0.32;
+          if (feetY <= topY + 0.02 && feetY >= (topY - tol)){
             state.y = topY + playerRadius;
             state.vy = 0;
             landed = true;
           }
         }
 
-        // Score when passing front edge
         if (!p.userData.passed && cz < (p.position.z - d/2 - 0.2)){
           p.userData.passed = true;
           state.score += 1; scoreEl.textContent = String(state.score);
@@ -398,13 +471,34 @@
       return landed;
     }
 
-    // Main loop
+    // ---------- Splash particles ----------
+const splashGroup = new THREE.Group();
+scene.add(splashGroup);
+
+function spawnSplash(x,z){
+  splashGroup.clear();
+  const geo = new THREE.CircleGeometry(0.25, 16);
+  const mat = new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.8 });
+  for(let i=0;i<5;i++){
+    const m = new THREE.Mesh(geo, mat.clone());
+    m.position.set(x, -4.9, z); // just above sea
+    m.rotation.x = -Math.PI/2;
+    splashGroup.add(m);
+  }
+  // animate opacity & scale
+  splashGroup.children.forEach((c,idx)=>{
+    c.userData = { life:0, speed:0.4+idx*0.1 };
+  });
+}
+
+    // Animate
     function animate(now){
       requestAnimationFrame(animate);
       const dt = Math.min(0.033, (now - (state.lastTime||now))/1000);
       state.lastTime = now;
 
-      // Update sea animation
+      // drift clouds a bit
+      clouds.forEach((c,i)=>{ c.position.x += (i%2?0.004:-0.003); if (c.position.x>18) c.position.x=-18; if (c.position.x<-18) c.position.x=18; });
       seaUniforms.time.value += dt;
 
       if (state.running){
@@ -414,24 +508,17 @@
 
         const wasOn = state.onPlatform;
         state.onPlatform = checkLanding(state.x, state.y, state.z);
-
-        if (wasOn && !state.onPlatform && state.vy >= 0) {
-          state.vy = -0.02; // nudge to start falling immediately after edge
-        }
-
-        // Fall into sea → game over
+        if (wasOn && !state.onPlatform && state.vy >= 0) state.vy = -0.02;
         if (!state.onPlatform && state.y < -4) endGame();
 
-        // Cull far-behind platforms (perf)
+        // cull behind (optional)
         for (let i=platforms.length-1; i>=0; i--){
-          if (platforms[i].position.z - state.z > 120){
-            scene.remove(platforms[i]);
-            platforms.splice(i,1);
+          if (platforms[i].position.z - state.z > 140){
+            scene.remove(platforms[i]); platforms.splice(i,1);
           }
         }
       }
 
-      // Mesh transforms
       player.position.set(state.x, state.y, state.z);
       player.rotation.z += state.running ? 0.02 + state.zSpeed*0.002 : 0.0;
 
@@ -440,19 +527,36 @@
       shadow.scale.set(shadowScale, shadowScale, 1);
 
       updateCamera(dt);
+      // update splash ripples
+splashGroup.children.forEach(c=>{
+  c.userData.life += dt;
+  c.scale.setScalar(1 + c.userData.life*1.5);
+  c.material.opacity = Math.max(0, 0.8 - c.userData.life*0.8);
+});
+if(splashGroup.children.length && splashGroup.children[0].userData.life>2){
+  splashGroup.clear();
+}
+
+// move birds
+birds.forEach(b=>{
+  b.position.x += 0.06;
+  if(b.position.x>20){ b.position.x=-20; b.position.y=THREE.MathUtils.randFloat(6,14); }
+});
+
       renderer.render(scene, camera);
     }
     requestAnimationFrame(animate);
 
     // Responsive
-    window.addEventListener('resize', ()=>{
+    addEventListener('resize', ()=>{
       renderer.setSize(innerWidth, innerHeight);
       camera.aspect = innerWidth/innerHeight;
       camera.updateProjectionMatrix();
     });
 
+    // Start
     placeOnStart();
-    showOverlay("New look: sky gradient + sea below 🌅🌊 Tap/Space to play!");
+    showOverlay("Bright blue skies ☀️ white clouds ☁️ daylight sea 🌊 Tap/Space to play!");
   </script>
 </body>
 </html>
