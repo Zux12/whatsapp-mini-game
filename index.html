@@ -226,4 +226,192 @@
       overlay.style.display = 'flex';
       overlay.style.pointerEvents = 'auto';
       playBtn.style.display = withRestart ? 'none' : 'inline-block';
-      restartBtn.style.display = withRestart ? 'inline-block' : 'none'
+      restartBtn.style.display = withRestart ? 'inline-block' : 'none';
+    }
+    function hideOverlay(){
+      overlay.hidden = true;
+      overlay.style.display = 'none';
+      overlay.style.pointerEvents = 'none';
+    }
+
+    // Compute topY helper
+    function platformTopY(p){ return p.position.y + (p.userData.h || 0.3)/2 + 0.001; }
+
+    // Place player exactly on top of the start platform
+    function placeOnStart(){
+      const topY = platformTopY(startPlat);
+      state.x = 0;
+      state.z = 2.0;  // inside the long pad (z range ≈ -4..+4)
+      state.y = topY + playerHalf.y;   // feet exactly at platform top
+      state.vy = 0;
+      state.onPlatform = true;
+    }
+
+    function resetGame(){
+      state.running = true;
+      state.score = 0; scoreEl.textContent = '0';
+      state.zSpeed = 3.6; state.gravity = -20; state.jumpVelocity = 8.75;
+      state.lastTime = performance.now();
+      state.legPhase = 0;
+
+      // Rebuild platforms (keep the long start)
+      for (const p of platforms) scene.remove(p);
+      platforms.length = 0;
+      seedZ = -8;
+      const newStart = makePlatform(4.0, 0.3, 8.0, 0, 0.6, 0, platMatA);
+      addChunk(14);
+
+      // Update reference + snap the player on top
+      placeOnStart();
+
+      hideOverlay();
+    }
+
+    function endGame(){
+      state.running = false;
+      if (state.score > state.best){
+        state.best = state.score;
+        localStorage.setItem('obby3d_best', String(state.best));
+        bestEl.textContent = String(state.best);
+      }
+      showOverlay(`You fell! Score ${state.score}. Best ${state.best}.`, true);
+    }
+
+    function jump(){
+      if(!state.running) return;
+      if (state.onPlatform){
+        state.vy = state.jumpVelocity;
+        state.onPlatform = false;
+      }
+    }
+
+    // Controls
+    window.addEventListener('keydown', e=>{
+      if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); jump(); }
+    }, {passive:false});
+    window.addEventListener('pointerdown', e=>{
+      if (overlay.style.display !== 'none') return; // don't jump under overlay
+      jump();
+    });
+
+    playBtn.onclick = resetGame;
+    restartBtn.onclick = resetGame;
+    howBtn.onclick = () => alert("Tap/Space to jump.\nStart on a longer safe platform.\nReach the next platform to score.\nGaps get trickier—don't fall!");
+
+    // Share to WhatsApp
+    shareBtn.onclick = () => {
+      const url = location.href;
+      const msg = `I scored ${state.best} in Obby 3D — Mini! Play: ${url}`;
+      location.href = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+    };
+
+    function updateCamera(dt){
+      // Smooth follow with look-ahead
+      const target = new THREE.Vector3(state.x, state.y + 2.2, state.z + 8.5);
+      camera.position.lerp(target, Math.min(1, dt*2.5));
+      camera.lookAt(state.x, state.y + 0.9, state.z - 2.0);
+    }
+
+    // Robust landing: snap to platform if descending & within bounds (bigger tolerance)
+    function checkLanding(px, py, pz){
+      let landed = false;
+      const feetY = py - playerHalf.y;
+      for (let i=0;i<platforms.length;i++){
+        const p = platforms[i];
+        const w = p.userData.w, h = p.userData.h, d = p.userData.d;
+        const minX = p.position.x - w/2, maxX = p.position.x + w/2;
+        const topY = p.position.y + h/2 + 0.001; // platform top
+        const minZ = p.position.z - d/2, maxZ = p.position.z + d/2;
+
+        const withinXZ = (px >= minX - playerHalf.x && px <= maxX + playerHalf.x &&
+                          pz >= minZ - playerHalf.z && pz <= maxZ + playerHalf.z);
+
+        // If inside XZ bounds and descending, snap feet to top when near it
+        if (withinXZ && state.vy <= 0){
+          // generous tolerance so we never tunnel through at low FPS
+          const tolerance = 0.45;
+          if (feetY <= topY + 0.02 && feetY >= (topY - tolerance)){
+            state.y = topY + playerHalf.y;
+            state.vy = 0;
+            landed = true;
+          }
+        }
+
+        // Score when passing the front edge of a platform for the first time
+        if (!p.userData.passed && pz < (p.position.z - d/2 - 0.2)){
+          p.userData.passed = true;
+          state.score += 1; scoreEl.textContent = String(state.score);
+          state.zSpeed = Math.min(7.5, state.zSpeed + 0.06);
+          if ((state.score % 6) === 0) addChunk(6);
+        }
+      }
+      return landed;
+    }
+
+    function animateBlockMan(dt){
+      // Walk/run animation on ground; tucked pose in air
+      state.legPhase += dt * (state.onPlatform ? (2.5 + state.zSpeed*0.35) : 6.0);
+      const legSwing = state.onPlatform ? Math.sin(state.legPhase) * 0.55 : 0.12;
+      const armSwing = state.onPlatform ? Math.sin(state.legPhase + Math.PI) * 0.65 : 0.18;
+      const bob      = state.onPlatform ? Math.abs(Math.sin(state.legPhase))*0.035 : 0.0;
+
+      body.position.y = 0.8 + bob;
+      head.position.y = 1.35 + bob * 0.6;
+
+      // Rotate limbs around x for a cartoony jog
+      armL.rotation.x = armSwing;
+      armR.rotation.x = -armSwing;
+      legL.rotation.x = legSwing;
+      legR.rotation.x = -legSwing;
+
+      // Slight forward tilt when moving on ground; slight back tilt in air
+      const targetTilt = state.onPlatform ? 0.08 : -0.05;
+      playerGroup.rotation.x = THREE.MathUtils.lerp(playerGroup.rotation.x, targetTilt, 0.15);
+    }
+
+    function animate(now){
+      requestAnimationFrame(animate);
+      const dt = Math.min(0.033, (now - (state.lastTime||now))/1000);
+      state.lastTime = now;
+
+      if (state.running){
+        // Forward motion
+        state.z -= state.zSpeed * dt;
+
+        // Gravity
+        state.vy += state.gravity * dt;
+        state.y += state.vy * dt;
+
+        // Landing/fall
+        state.onPlatform = checkLanding(state.x, state.y, state.z);
+        if (!state.onPlatform && state.y < -4) endGame();
+      }
+
+      // Update block-man transform
+      playerGroup.position.set(state.x, state.y, state.z);
+      animateBlockMan(dt);
+
+      // Shadow follows and scales with height
+      shadow.position.set(state.x, Math.max(0.05, state.y-0.85), state.z);
+      const shadowScale = Math.max(0.35, 1.1 - (state.y-0.6)*0.25);
+      shadow.scale.set(shadowScale, shadowScale, 1);
+
+      updateCamera(dt);
+      renderer.render(scene, camera);
+    }
+    requestAnimationFrame(animate);
+
+    // Responsive
+    window.addEventListener('resize', ()=>{
+      renderer.setSize(innerWidth, innerHeight);
+      camera.aspect = innerWidth/innerHeight;
+      camera.updateProjectionMatrix();
+    });
+
+    // Place player correctly on first load so no instant fall
+    placeOnStart();
+    // Show overlay on load
+    showOverlay("Start on a longer safe platform. Tap/Space to jump and reach the next platforms!");
+  </script>
+</body>
+</html>
