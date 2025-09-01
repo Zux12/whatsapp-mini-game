@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Tap Dash — Mini Game</title>
+  <title>Obby 3D — Mini</title>
 
-  <!-- Nice preview in WhatsApp/Twitter -->
-  <meta property="og:title" content="Tap Dash — Mini Game" />
-  <meta property="og:description" content="One-minute reflex runner. Can you beat 30?" />
+  <!-- Social preview (update image URL if you like) -->
+  <meta property="og:title" content="Obby 3D — Mini" />
+  <meta property="og:description" content="Tap/Space to jump across floating platforms. How far can you go?" />
   <meta property="og:image" content="https://zux12.github.io/whatsapp-mini-game/preview.png" />
   <meta property="og:url" content="https://zux12.github.io/whatsapp-mini-game/" />
   <meta name="twitter:card" content="summary_large_image" />
@@ -15,221 +15,337 @@
   <link rel="icon" href="favicon.ico" />
 
   <style>
-    :root { --bg:#0f1225; --fg:#e6e7ff; --accent:#6ae08a; --muted:#7b80a6; }
-    *{box-sizing:border-box} html,body{height:100%} body{
-      margin:0; background:radial-gradient(80vmax 80vmax at 50% -10%, #1a1f41 0%, var(--bg) 60%);
-      color:var(--fg); font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
-      display:flex; align-items:center; justify-content:center;
+    :root { --bg:#0e1024; --fg:#e9ecff; --muted:#8b90b6; --accent:#69e08a; }
+    html,body{height:100%; margin:0; background:radial-gradient(120vmax 120vmax at 50% -20%, #161a3a, var(--bg) 55%); color:var(--fg); font-family:system-ui,-apple-system,Segoe UI,Inter,Roboto,Arial,sans-serif; overflow:hidden;}
+    #hud{
+      position:fixed; inset:0; pointer-events:none; display:flex; flex-direction:column; justify-content:space-between;
+      padding:12px;
     }
-    .wrap{width:100%; max-width:560px; padding:16px;}
+    .topbar{display:flex; gap:8px; align-items:center; justify-content:space-between;}
+    .pill{pointer-events:auto; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); padding:8px 12px; border-radius:999px; font-variant-numeric:tabular-nums;}
+    .btn{pointer-events:auto; border:0; padding:12px 16px; border-radius:12px; cursor:pointer; font-weight:700; background:var(--accent); color:#072114; box-shadow:0 10px 24px rgba(106,224,138,.35);}
+    .btn.secondary{background:#2d335e; color:#dfe3ff; box-shadow:none}
+    #overlay{
+      pointer-events:auto;
+      position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+      background:linear-gradient(180deg, rgba(10,12,30,.72), rgba(10,12,30,.55));
+      backdrop-filter: blur(4px);
+    }
     .card{
-      background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06);
-      border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,0.35); padding:16px;
+      width:min(92vw,540px); border-radius:20px; padding:16px; text-align:center;
+      background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12);
+      box-shadow:0 20px 60px rgba(0,0,0,0.45);
     }
-    header{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px}
-    h1{font-size:20px; margin:0}
-    .muted{color:var(--muted); font-size:13px}
-    #game{width:100%; height:280px; background:#0b0e21; border-radius:14px; display:block}
-    .row{display:flex; gap:8px; align-items:center; margin-top:10px; flex-wrap:wrap}
-    button{
-      border:0; padding:12px 16px; border-radius:12px; cursor:pointer; font-weight:600;
-      background:var(--accent); color:#05260f; box-shadow:0 6px 14px rgba(106,224,138,.35);
-    }
-    button.secondary{background:#2b2f55; color:#d8dbff; box-shadow:none}
-    .pill{padding:8px 10px; border-radius:999px; background:#1a1f3f; font-variant-numeric:tabular-nums}
-    footer{margin-top:8px; text-align:center; font-size:12px; color:var(--muted)}
+    h1{margin:8px 0 6px; font-size:22px}
+    p{margin:8px 0; color:var(--muted)}
+    .row{display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:10px}
+    #hint{font-size:13px}
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="card">
-      <header>
-        <h1>Tap Dash</h1>
-        <div>
-          <span class="pill">Score: <b id="score">0</b></span>
-          <span class="pill">Best: <b id="best">0</b></span>
-          <span class="pill">Time: <b id="time">60</b>s</span>
-        </div>
-      </header>
-
-      <canvas id="game" width="560" height="280" aria-label="Tap Dash canvas"></canvas>
-
-      <div class="row">
-        <button id="playBtn">▶️ Play</button>
-        <button id="shareBtn" class="secondary">Share my score</button>
-        <span class="muted" id="hint">Tap screen to JUMP. Avoid the blocks.</span>
-      </div>
-
-      <footer>Runs entirely in your browser. No sign-in. High score is saved on this device.</footer>
+  <div id="hud">
+    <div class="topbar">
+      <div class="pill">Score: <b id="score">0</b></div>
+      <div class="pill">Best: <b id="best">0</b></div>
+      <div class="pill">Tap/Space = Jump</div>
+    </div>
+    <div style="display:flex; gap:8px; justify-content:center; margin-bottom:10px;">
+      <button id="shareBtn" class="btn secondary">Share my score</button>
     </div>
   </div>
 
-  <script>
-    // --- Simple runner: tap/click to jump; avoid obstacles; 60s timer ---
-    const canvas = document.getElementById('game');
-    const ctx = canvas.getContext('2d');
+  <div id="overlay" hidden>
+    <div class="card">
+      <h1>Obby 3D — Mini</h1>
+      <p id="summary">Jump across floating platforms. Don’t fall!</p>
+      <div class="row">
+        <button id="playBtn" class="btn">▶️ Play</button>
+        <button id="restartBtn" class="btn" style="display:none">↻ Restart</button>
+        <button id="howBtn" class="btn secondary">How to play</button>
+      </div>
+      <p id="hint">Tap anywhere or press Space to jump. Survive and reach farther platforms to gain score.</p>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.158.0/build/three.module.js';
+
+    // ------- Basic scene setup -------
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0d1023);
+    scene.fog = new THREE.Fog(0x0d1023, 30, 120);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 500);
+    camera.position.set(0, 4.5, 10);
+
+    const renderer = new THREE.WebGLRenderer({ antialias:true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Lights
+    const hemi = new THREE.HemisphereLight(0xcad8ff, 0x202535, 1.2);
+    scene.add(hemi);
+    const dir = new THREE.DirectionalLight(0xffffff, 0.9);
+    dir.position.set(5,8,2);
+    scene.add(dir);
+
+    // Ground ambience (far backdrop plane, not collidable)
+    const groundGeo = new THREE.PlaneGeometry(400, 400);
+    const groundMat = new THREE.MeshPhongMaterial({ color: 0x12183a, shininess: 10, specular: 0x0 });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI/2;
+    ground.position.y = -20; // far below, for ambience
+    scene.add(ground);
+
+    // ------- Player (sphere) -------
+    const playerRadius = 0.4;
+    const playerGeo = new THREE.SphereGeometry(playerRadius, 24, 20);
+    const playerMat = new THREE.MeshStandardMaterial({ color: 0xe6e7ff, roughness: 0.4, metalness: 0.0 });
+    const player = new THREE.Mesh(playerGeo, playerMat);
+    scene.add(player);
+
+    // Shadow plane under player (fake soft shadow)
+    const shadowGeo = new THREE.CircleGeometry(0.55, 24);
+    const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent:true, opacity:0.25 });
+    const shadow = new THREE.Mesh(shadowGeo, shadowMat);
+    shadow.rotation.x = -Math.PI/2;
+    scene.add(shadow);
+
+    // ------- Platforms -------
+    const platforms = [];
+    const platGeo = new THREE.BoxGeometry(1, 0.3, 2);
+    const platMatA = new THREE.MeshStandardMaterial({ color: 0x69e08a, roughness: 0.5, metalness: 0.05 });
+    const platMatB = new THREE.MeshStandardMaterial({ color: 0x52b8f2, roughness: 0.5, metalness: 0.05 });
+    const mats = [platMatA, platMatB];
+
+    function makePlatform(w=2, h=0.3, d=2, x=0, y=0, z=0, mat=platMatA){
+      const g = new THREE.BoxGeometry(w, h, d);
+      const m = mat.clone();
+      const mesh = new THREE.Mesh(g, m);
+      mesh.position.set(x, y, z);
+      mesh.receiveShadow = false;
+      mesh.userData = { w, h, d };
+      scene.add(mesh);
+      platforms.push(mesh);
+      return mesh;
+    }
+
+    // Initial path
+    let seedZ = 0;
+    function addChunk(n=8){
+      for(let i=0;i<n;i++){
+        const w = THREE.MathUtils.randFloat(1.4, 3.0);
+        const d = THREE.MathUtils.randFloat(1.8, 2.5);
+        const y = THREE.MathUtils.randFloat(0.6, 1.6);
+        const x = THREE.MathUtils.randFloatSpread(2.2);
+        seedZ -= THREE.MathUtils.randFloat(2.5, 4.2); // spacing forward
+        const mat = mats[(Math.random()*mats.length)|0];
+        makePlatform(w, 0.3, d, x, y, seedZ, mat);
+      }
+    }
+    // Start platforms near origin
+    seedZ = -2;
+    makePlatform(2.2,0.3,2.2, 0, 0.6, 0, platMatA);
+    addChunk(14);
+
+    // ------- Game state -------
+    const state = {
+      running:false,
+      score:0,
+      best: parseInt(localStorage.getItem('obby3d_best') || '0',10),
+      // physics
+      zSpeed: 3.6,            // forward m/s
+      gravity: -20,           // m/s^2
+      jumpVelocity: 8.5,      // m/s
+      vy: 0,                  // vertical velocity
+      // player pose
+      x: 0,
+      y: 1.0,
+      z: 1.0,
+      onPlatform: false,
+      lastTime: 0
+    };
+
+    // HUD
     const scoreEl = document.getElementById('score');
     const bestEl  = document.getElementById('best');
-    const timeEl  = document.getElementById('time');
+    bestEl.textContent = String(state.best);
+    const overlay = document.getElementById('overlay');
     const playBtn = document.getElementById('playBtn');
+    const restartBtn = document.getElementById('restartBtn');
+    const howBtn = document.getElementById('howBtn');
+    const summary = document.getElementById('summary');
     const shareBtn= document.getElementById('shareBtn');
-    const hintEl  = document.getElementById('hint');
 
-    // Maintain aspect on small screens
-    const resize = () => {
-      const w = Math.min(560, canvas.parentElement.clientWidth);
-      const ratio = 560/280;
-      canvas.width = w;
-      canvas.height = Math.round(w/ratio);
-    };
-    addEventListener('resize', resize, {passive:true}); resize();
+    function showOverlay(msg, withRestart=false){
+      summary.textContent = msg;
+      overlay.hidden = false;
+      playBtn.style.display = withRestart ? 'none' : 'inline-block';
+      restartBtn.style.display = withRestart ? 'inline-block' : 'none';
+    }
+    function hideOverlay(){ overlay.hidden = true; }
 
-    const state = {
-      playing:false, score:0, best:parseInt(localStorage.getItem('tapdash_best')||'0',10),
-      tLeft:60, last:0, g:0.8, jumpV:-10, floor:0, player:null, blocks:[], speed:4
-    };
-    bestEl.textContent = state.best;
+    function resetGame(){
+      // Reset state
+      state.running = true;
+      state.score = 0;
+      scoreEl.textContent = '0';
+      state.zSpeed = 3.6;
+      state.gravity = -20;
+      state.jumpVelocity = 8.5;
+      state.vy = 0;
+      state.x = 0;
+      state.y = 1.0;
+      state.z = 1.0;
+      state.onPlatform = false;
+      state.lastTime = performance.now();
 
-    function resetRun() {
-      state.playing = true;
-      state.score   = 0;
-      state.tLeft   = 60;
-      state.blocks  = [];
-      state.speed   = 4;
-      state.floor   = canvas.height - 28;
-      state.player  = {x: 40, y: state.floor, v: 0, r: 12};
-      spawnBlock();
-      hintEl.textContent = 'Tap to jump!';
+      // Clear & rebuild platforms
+      for(const p of platforms) scene.remove(p);
+      platforms.length = 0;
+      seedZ = -2;
+      makePlatform(2.2,0.3,2.2, 0, 0.6, 0, platMatA);
+      addChunk(14);
+
+      hideOverlay();
     }
 
-    function spawnBlock() {
-      const gap = 140 + Math.random()*80;
-      const h = 18 + Math.random()*30;
-      const w = 18 + Math.random()*26;
-      const y = state.floor - h + 14; // sit on floor visually
-      const color = '#6ae08a';
-      state.blocks.push({x: canvas.width + gap, y, w, h, color});
-    }
-
-    function jump() {
-      if(!state.playing) return;
-      if (state.player.y >= state.floor - 1) state.player.v = state.jumpV;
-    }
-
-    canvas.addEventListener('pointerdown', jump);
-    addEventListener('keydown', e => { if(e.code==='Space'||e.code==='ArrowUp') jump(); });
-
-    playBtn.onclick = () => { if(!state.playing) resetRun(); };
-
-    function drawBackground() {
-      // ground
-      ctx.fillStyle = '#0a0d1f'; ctx.fillRect(0,0,canvas.width,canvas.height);
-      ctx.fillStyle = '#12163a'; ctx.fillRect(0, state.floor+14, canvas.width, canvas.height - state.floor);
-      // lane stripes
-      ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 2;
-      for (let x=0; x<canvas.width; x+=26){ ctx.beginPath(); ctx.moveTo(x, state.floor+10); ctx.lineTo(x+10, state.floor+10); ctx.stroke(); }
-    }
-
-    function step(now){
-      requestAnimationFrame(step);
-      if(!state.last) state.last = now;
-      const dt = Math.min(50, now - state.last); // ms cap
-      state.last = now;
-
-      drawBackground();
-
-      // Timer
-      if (state.playing){
-        state.tLeft -= dt/1000;
-        if (state.tLeft <= 0){
-          state.tLeft = 0;
-          endRun();
-        }
-      }
-      timeEl.textContent = Math.ceil(state.tLeft);
-
-      // Player physics
-      const p = state.player;
-      if (state.playing){
-        p.v += state.g;
-        p.y += p.v;
-        if (p.y > state.floor) { p.y = state.floor; p.v = 0; }
-      }
-      // Draw player
-      ctx.fillStyle = '#e6e7ff';
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
-
-      // Blocks
-      if (state.playing){
-        for (const b of state.blocks) { b.x -= state.speed; }
-        // Spawn new when first passes certain point
-        if (state.blocks.length < 3 && state.blocks[state.blocks.length-1].x < canvas.width - 160){
-          spawnBlock();
-          // slight difficulty ramp
-          state.speed = Math.min(9, state.speed + 0.08);
-        }
-        // Scoring: when block passes player
-        for (const b of state.blocks) {
-          if (!b.passed && b.x + b.w < p.x - p.r) { b.passed = true; state.score++; scoreEl.textContent = state.score; }
-        }
-        // Remove off-screen
-        state.blocks = state.blocks.filter(b => b.x + b.w > -20);
-      }
-
-      // Draw blocks + collision
-      for (const b of state.blocks){
-        ctx.fillStyle = b.color;
-        ctx.fillRect(b.x, b.y, b.w, b.h);
-        if (state.playing && circleRectCollide(p.x, p.y, p.r, b.x, b.y, b.w, b.h)){
-          flash('#ff6b6b'); endRun();
-        }
-      }
-
-      if (!state.playing) {
-        ctx.fillStyle = 'rgba(0,0,0,.35)';
-        ctx.fillRect(0,0,canvas.width,canvas.height);
-        ctx.fillStyle = '#fff'; ctx.textAlign='center';
-        ctx.font = '700 20px system-ui, -apple-system, Segoe UI';
-        ctx.fillText('Tap ▶️ Play, then tap to JUMP', canvas.width/2, canvas.height/2 - 6);
-        ctx.font = '600 16px system-ui, -apple-system, Segoe UI';
-        ctx.fillStyle = 'rgba(255,255,255,0.75)';
-        ctx.fillText('Avoid the green blocks for 60 seconds', canvas.width/2, canvas.height/2 + 20);
-      }
-    }
-    requestAnimationFrame(step);
-
-    function circleRectCollide(cx, cy, cr, rx, ry, rw, rh){
-      const closestX = clamp(cx, rx, rx + rw);
-      const closestY = clamp(cy, ry, ry + rh);
-      const dx = cx - closestX, dy = cy - closestY;
-      return (dx*dx + dy*dy) <= cr*cr;
-    }
-    const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
-
-    function endRun(){
-      if (!state.playing) return;
-      state.playing = false;
-      hintEl.textContent = `Game over. Score ${state.score}. Press Play to try again.`;
+    function endGame(){
+      state.running = false;
       if (state.score > state.best){
         state.best = state.score;
-        localStorage.setItem('tapdash_best', String(state.best));
-        bestEl.textContent = state.best;
+        localStorage.setItem('obby3d_best', String(state.best));
+        bestEl.textContent = String(state.best);
       }
-    }
-    function flash(color){
-      const t = 120; // ms
-      canvas.style.boxShadow = `0 0 0 4px ${color} inset`;
-      setTimeout(()=>canvas.style.boxShadow='none', t);
+      showOverlay(`You fell! Score ${state.score}. Best ${state.best}.`, true);
     }
 
-    // --- Share to WhatsApp ---
-    function waEncode(s){ return encodeURIComponent(s); }
+    function jump(){
+      if(!state.running) return;
+      if (state.onPlatform){
+        state.vy = state.jumpVelocity;
+        state.onPlatform = false;
+      }
+    }
+
+    // Controls
+    window.addEventListener('keydown', e=>{
+      if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); jump(); }
+    }, {passive:false});
+    window.addEventListener('pointerdown', e=>{
+      // If overlay shown, tapping starts/restarts
+      if (!overlay.hidden) return;
+      jump();
+    });
+
+    playBtn.onclick = resetGame;
+    restartBtn.onclick = resetGame;
+    howBtn.onclick = () => alert("Tap/Space to jump.\nReach the next platform to score.\nGaps get trickier—don't fall!");
+
+    // Share to WhatsApp
     shareBtn.onclick = () => {
-      const url = 'https://zux12.github.io/whatsapp-mini-game/';
-      const msg = `I scored ${state.best} in Tap Dash! Play: ${url}`;
-      location.href = `https://wa.me/?text=${waEncode(msg)}`;
+      const url = location.href;
+      const msg = `I scored ${state.best} in Obby 3D — Mini! Play: ${url}`;
+      location.href = `https://wa.me/?text=${encodeURIComponent(msg)}`;
     };
+
+    // Camera follow helper
+    function updateCamera(dt){
+      // Follow behind/above player
+      const target = new THREE.Vector3(state.x, state.y + 2.2, state.z + 8.5);
+      camera.position.lerp(target, Math.min(1, dt*2.5));
+      camera.lookAt(state.x, state.y + 0.6, state.z - 2.0);
+    }
+
+    // Simple AABB "landing" check (sphere over box top)
+    function checkLanding(px, py, pz){
+      // Increase difficulty gradually: speed up & add more chunks ahead
+      // Count score when crossing platforms (z threshold)
+      let landed = false;
+      for (let i=0;i<platforms.length;i++){
+        const p = platforms[i];
+        const w = p.userData.w, h = p.userData.h, d = p.userData.d;
+        const minX = p.position.x - w/2, maxX = p.position.x + w/2;
+        const topY = p.position.y + h/2 + 0.001;
+        const minZ = p.position.z - d/2, maxZ = p.position.z + d/2;
+
+        const withinXZ = (px >= minX - playerRadius && px <= maxX + playerRadius &&
+                          pz >= minZ - playerRadius && pz <= maxZ + playerRadius);
+
+        // Landing if we're moving downward and feet touch the platform top inside bounds
+        if (withinXZ && state.vy <= 0 && (py - playerRadius) <= topY && (py - playerRadius) >= (topY - 0.25)){
+          state.y = topY + playerRadius;
+          state.vy = 0;
+          landed = true;
+        }
+
+        // Score when passing the front edge of a platform for the first time
+        if (!p.userData.passed && pz < (p.position.z - d/2 - 0.2)){
+          p.userData.passed = true;
+          state.score += 1;
+          scoreEl.textContent = String(state.score);
+          // Slight difficulty ramp
+          state.zSpeed = Math.min(7.5, state.zSpeed + 0.06);
+          if ((state.score % 6) === 0) addChunk(6);
+        }
+      }
+      return landed;
+    }
+
+    // Main loop
+    function animate(now){
+      requestAnimationFrame(animate);
+      const dt = Math.min(0.033, (now - (state.lastTime||now))/1000);
+      state.lastTime = now;
+
+      if (state.running){
+        // Forward motion
+        state.z -= state.zSpeed * dt;
+
+        // Gravity
+        state.vy += state.gravity * dt;
+        state.y += state.vy * dt;
+
+        // Check landing
+        const wasOnPlat = state.onPlatform;
+        state.onPlatform = checkLanding(state.x, state.y, state.z);
+
+        // If we were on platform and now we're far below, it's a fall
+        if (!state.onPlatform && state.y < -4) {
+          endGame();
+        }
+
+        // Remove platforms far behind player to keep scene light
+        for (let i=platforms.length-1; i>=0; i--){
+          if (platforms[i].position.z - state.z > 120){ // (unused behind)
+            scene.remove(platforms[i]);
+            platforms.splice(i,1);
+          }
+        }
+      }
+
+      // Update player mesh & shadow
+      player.position.set(state.x, state.y, state.z);
+      player.rotation.z += state.running ? 0.02 + state.zSpeed*0.002 : 0.0;
+      shadow.position.set(state.x, Math.max(0.05, state.y-0.45), state.z);
+      const shadowScale = Math.max(0.35, 1.0 - (state.y-0.6)*0.25);
+      shadow.scale.set(shadowScale, shadowScale, 1);
+
+      updateCamera(dt);
+      renderer.render(scene, camera);
+    }
+    requestAnimationFrame(animate);
+
+    // Responsive
+    window.addEventListener('resize', ()=>{
+      renderer.setSize(innerWidth, innerHeight);
+      camera.aspect = innerWidth/innerHeight;
+      camera.updateProjectionMatrix();
+    });
+
+    // Start screen visible initially
+    showOverlay("Jump across floating platforms. Reach as far as you can!");
   </script>
 </body>
 </html>
-
