@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Obby 3D — Mini</title>
 
-  <!-- Social preview (update image URL if you like) -->
+  <!-- Social preview -->
   <meta property="og:title" content="Obby 3D — Mini" />
   <meta property="og:description" content="Tap/Space to jump across floating platforms. How far can you go?" />
   <meta property="og:image" content="https://zux12.github.io/whatsapp-mini-game/preview.png" />
@@ -15,9 +15,12 @@
   <link rel="icon" href="favicon.ico" />
 
   <style>
-    [hidden] { display: none !important; }
     :root { --bg:#0e1024; --fg:#e9ecff; --muted:#8b90b6; --accent:#69e08a; }
     html,body{height:100%; margin:0; background:radial-gradient(120vmax 120vmax at 50% -20%, #161a3a, var(--bg) 55%); color:var(--fg); font-family:system-ui,-apple-system,Segoe UI,Inter,Roboto,Arial,sans-serif; overflow:hidden;}
+
+    /* Force-hide anything with [hidden] even on mobile Safari */
+    [hidden]{ display:none !important; }
+
     #hud{
       position:fixed; inset:0; pointer-events:none; display:flex; flex-direction:column; justify-content:space-between;
       padding:12px;
@@ -26,11 +29,12 @@
     .pill{pointer-events:auto; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); padding:8px 12px; border-radius:999px; font-variant-numeric:tabular-nums;}
     .btn{pointer-events:auto; border:0; padding:12px 16px; border-radius:12px; cursor:pointer; font-weight:700; background:var(--accent); color:#072114; box-shadow:0 10px 24px rgba(106,224,138,.35);}
     .btn.secondary{background:#2d335e; color:#dfe3ff; box-shadow:none}
+
     #overlay{
-      pointer-events:auto;
       position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
       background:linear-gradient(180deg, rgba(10,12,30,.72), rgba(10,12,30,.55));
       backdrop-filter: blur(4px);
+      z-index: 10; /* over canvas */
     }
     .card{
       width:min(92vw,540px); border-radius:20px; padding:16px; text-align:center;
@@ -55,7 +59,8 @@
     </div>
   </div>
 
-  <div id="overlay" hidden>
+  <!-- Start overlay is visible by default -->
+  <div id="overlay">
     <div class="card">
       <h1>Obby 3D — Mini</h1>
       <p id="summary">Jump across floating platforms. Don’t fall!</p>
@@ -64,7 +69,7 @@
         <button id="restartBtn" class="btn" style="display:none">↻ Restart</button>
         <button id="howBtn" class="btn secondary">How to play</button>
       </div>
-      <p id="hint">Tap anywhere or press Space to jump. Survive and reach farther platforms to gain score.</p>
+      <p id="hint">Tap anywhere or press Space to jump. Reach farther platforms to gain score.</p>
     </div>
   </div>
 
@@ -91,12 +96,12 @@
     dir.position.set(5,8,2);
     scene.add(dir);
 
-    // Ground ambience (far backdrop plane, not collidable)
+    // Ground ambience (far backdrop plane)
     const groundGeo = new THREE.PlaneGeometry(400, 400);
     const groundMat = new THREE.MeshPhongMaterial({ color: 0x12183a, shininess: 10, specular: 0x0 });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI/2;
-    ground.position.y = -20; // far below, for ambience
+    ground.position.y = -20;
     scene.add(ground);
 
     // ------- Player (sphere) -------
@@ -115,7 +120,6 @@
 
     // ------- Platforms -------
     const platforms = [];
-    const platGeo = new THREE.BoxGeometry(1, 0.3, 2);
     const platMatA = new THREE.MeshStandardMaterial({ color: 0x69e08a, roughness: 0.5, metalness: 0.05 });
     const platMatB = new THREE.MeshStandardMaterial({ color: 0x52b8f2, roughness: 0.5, metalness: 0.05 });
     const mats = [platMatA, platMatB];
@@ -125,29 +129,26 @@
       const m = mat.clone();
       const mesh = new THREE.Mesh(g, m);
       mesh.position.set(x, y, z);
-      mesh.receiveShadow = false;
       mesh.userData = { w, h, d };
       scene.add(mesh);
       platforms.push(mesh);
       return mesh;
     }
 
-    // Initial path
-    let seedZ = 0;
+    let seedZ = -2;
+    makePlatform(2.2,0.3,2.2, 0, 0.6, 0, platMatA);
+
     function addChunk(n=8){
       for(let i=0;i<n;i++){
         const w = THREE.MathUtils.randFloat(1.4, 3.0);
         const d = THREE.MathUtils.randFloat(1.8, 2.5);
         const y = THREE.MathUtils.randFloat(0.6, 1.6);
         const x = THREE.MathUtils.randFloatSpread(2.2);
-        seedZ -= THREE.MathUtils.randFloat(2.5, 4.2); // spacing forward
+        seedZ -= THREE.MathUtils.randFloat(2.5, 4.2);
         const mat = mats[(Math.random()*mats.length)|0];
         makePlatform(w, 0.3, d, x, y, seedZ, mat);
       }
     }
-    // Start platforms near origin
-    seedZ = -2;
-    makePlatform(2.2,0.3,2.2, 0, 0.6, 0, platMatA);
     addChunk(14);
 
     // ------- Game state -------
@@ -155,23 +156,21 @@
       running:false,
       score:0,
       best: parseInt(localStorage.getItem('obby3d_best') || '0',10),
-      // physics
-      zSpeed: 3.6,            // forward m/s
-      gravity: -20,           // m/s^2
-      jumpVelocity: 8.5,      // m/s
-      vy: 0,                  // vertical velocity
-      // player pose
-      x: 0,
-      y: 1.0,
-      z: 1.0,
+      zSpeed: 3.6,
+      gravity: -20,
+      jumpVelocity: 8.5,
+      vy: 0,
+      x: 0, y: 1.0, z: 1.0,
       onPlatform: false,
       lastTime: 0
     };
 
-    // HUD
+    // HUD hooks
     const scoreEl = document.getElementById('score');
     const bestEl  = document.getElementById('best');
     bestEl.textContent = String(state.best);
+
+    // Overlay + buttons
     const overlay = document.getElementById('overlay');
     const playBtn = document.getElementById('playBtn');
     const restartBtn = document.getElementById('restartBtn');
@@ -179,38 +178,30 @@
     const summary = document.getElementById('summary');
     const shareBtn= document.getElementById('shareBtn');
 
+    // Robust overlay toggles (fixes Safari)
     function showOverlay(msg, withRestart=false){
-  summary.textContent = msg;
-  overlay.hidden = false;
-  overlay.style.display = 'flex';     // ensure it shows
-  overlay.style.pointerEvents = 'auto';
-  playBtn.style.display = withRestart ? 'none' : 'inline-block';
-  restartBtn.style.display = withRestart ? 'inline-block' : 'none';
-}
-
-function hideOverlay(){
-  overlay.hidden = true;
-  overlay.style.display = 'none';     // ensure it hides
-  overlay.style.pointerEvents = 'none';
-}
+      summary.textContent = msg;
+      overlay.hidden = false;
+      overlay.style.display = 'flex';
+      overlay.style.pointerEvents = 'auto';
+      playBtn.style.display = withRestart ? 'none' : 'inline-block';
+      restartBtn.style.display = withRestart ? 'inline-block' : 'none';
+    }
+    function hideOverlay(){
+      overlay.hidden = true;
+      overlay.style.display = 'none';
+      overlay.style.pointerEvents = 'none';
+    }
 
     function resetGame(){
-      // Reset state
       state.running = true;
-      state.score = 0;
-      scoreEl.textContent = '0';
-      state.zSpeed = 3.6;
-      state.gravity = -20;
-      state.jumpVelocity = 8.5;
-      state.vy = 0;
-      state.x = 0;
-      state.y = 1.0;
-      state.z = 1.0;
-      state.onPlatform = false;
-      state.lastTime = performance.now();
+      state.score = 0; scoreEl.textContent = '0';
+      state.zSpeed = 3.6; state.gravity = -20; state.jumpVelocity = 8.5;
+      state.vy = 0; state.x = 0; state.y = 1.0; state.z = 1.0;
+      state.onPlatform = false; state.lastTime = performance.now();
 
-      // Clear & rebuild platforms
-      for(const p of platforms) scene.remove(p);
+      // Rebuild platforms
+      for (const p of platforms) scene.remove(p);
       platforms.length = 0;
       seedZ = -2;
       makePlatform(2.2,0.3,2.2, 0, 0.6, 0, platMatA);
@@ -242,8 +233,7 @@ function hideOverlay(){
       if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); jump(); }
     }, {passive:false});
     window.addEventListener('pointerdown', e=>{
-      // If overlay shown, tapping starts/restarts
-      if (!overlay.hidden) return;
+      if (overlay.style.display !== 'none') return; // don't jump under overlay
       jump();
     });
 
@@ -258,18 +248,13 @@ function hideOverlay(){
       location.href = `https://wa.me/?text=${encodeURIComponent(msg)}`;
     };
 
-    // Camera follow helper
     function updateCamera(dt){
-      // Follow behind/above player
       const target = new THREE.Vector3(state.x, state.y + 2.2, state.z + 8.5);
       camera.position.lerp(target, Math.min(1, dt*2.5));
       camera.lookAt(state.x, state.y + 0.6, state.z - 2.0);
     }
 
-    // Simple AABB "landing" check (sphere over box top)
     function checkLanding(px, py, pz){
-      // Increase difficulty gradually: speed up & add more chunks ahead
-      // Count score when crossing platforms (z threshold)
       let landed = false;
       for (let i=0;i<platforms.length;i++){
         const p = platforms[i];
@@ -281,19 +266,15 @@ function hideOverlay(){
         const withinXZ = (px >= minX - playerRadius && px <= maxX + playerRadius &&
                           pz >= minZ - playerRadius && pz <= maxZ + playerRadius);
 
-        // Landing if we're moving downward and feet touch the platform top inside bounds
         if (withinXZ && state.vy <= 0 && (py - playerRadius) <= topY && (py - playerRadius) >= (topY - 0.25)){
           state.y = topY + playerRadius;
           state.vy = 0;
           landed = true;
         }
 
-        // Score when passing the front edge of a platform for the first time
         if (!p.userData.passed && pz < (p.position.z - d/2 - 0.2)){
           p.userData.passed = true;
-          state.score += 1;
-          scoreEl.textContent = String(state.score);
-          // Slight difficulty ramp
+          state.score += 1; scoreEl.textContent = String(state.score);
           state.zSpeed = Math.min(7.5, state.zSpeed + 0.06);
           if ((state.score % 6) === 0) addChunk(6);
         }
@@ -301,39 +282,28 @@ function hideOverlay(){
       return landed;
     }
 
-    // Main loop
     function animate(now){
       requestAnimationFrame(animate);
       const dt = Math.min(0.033, (now - (state.lastTime||now))/1000);
       state.lastTime = now;
 
       if (state.running){
-        // Forward motion
         state.z -= state.zSpeed * dt;
-
-        // Gravity
         state.vy += state.gravity * dt;
         state.y += state.vy * dt;
 
-        // Check landing
-        const wasOnPlat = state.onPlatform;
         state.onPlatform = checkLanding(state.x, state.y, state.z);
+        if (!state.onPlatform && state.y < -4) endGame();
 
-        // If we were on platform and now we're far below, it's a fall
-        if (!state.onPlatform && state.y < -4) {
-          endGame();
-        }
-
-        // Remove platforms far behind player to keep scene light
+        // Cull far-behind platforms (optional)
         for (let i=platforms.length-1; i>=0; i--){
-          if (platforms[i].position.z - state.z > 120){ // (unused behind)
+          if (platforms[i].position.z - state.z > 120){
             scene.remove(platforms[i]);
             platforms.splice(i,1);
           }
         }
       }
 
-      // Update player mesh & shadow
       player.position.set(state.x, state.y, state.z);
       player.rotation.z += state.running ? 0.02 + state.zSpeed*0.002 : 0.0;
       shadow.position.set(state.x, Math.max(0.05, state.y-0.45), state.z);
@@ -352,7 +322,7 @@ function hideOverlay(){
       camera.updateProjectionMatrix();
     });
 
-    // Start screen visible initially
+    // Show overlay on load
     showOverlay("Jump across floating platforms. Reach as far as you can!");
   </script>
 </body>
