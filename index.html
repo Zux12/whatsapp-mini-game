@@ -17,8 +17,6 @@
   <style>
     :root { --bg:#0e1024; --fg:#e9ecff; --muted:#8b90b6; --accent:#69e08a; }
     html,body{height:100%; margin:0; background:radial-gradient(120vmax 120vmax at 50% -20%, #161a3a, var(--bg) 55%); color:var(--fg); font-family:system-ui,-apple-system,Segoe UI,Inter,Roboto,Arial,sans-serif; overflow:hidden;}
-
-    /* Force-hide anything with [hidden] even on mobile Safari */
     [hidden]{ display:none !important; }
 
     #hud{
@@ -34,7 +32,7 @@
       position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
       background:linear-gradient(180deg, rgba(10,12,30,.72), rgba(10,12,30,.55));
       backdrop-filter: blur(4px);
-      z-index: 10; /* over canvas */
+      z-index: 10;
     }
     .card{
       width:min(92vw,540px); border-radius:20px; padding:16px; text-align:center;
@@ -59,7 +57,6 @@
     </div>
   </div>
 
-  <!-- Start overlay is visible by default -->
   <div id="overlay">
     <div class="card">
       <h1>Obby 3D — Mini</h1>
@@ -76,7 +73,7 @@
   <script type="module">
     import * as THREE from 'https://unpkg.com/three@0.158.0/build/three.module.js';
 
-    // ------- Basic scene setup -------
+    // ------- Scene -------
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0d1023);
     scene.fog = new THREE.Fog(0x0d1023, 30, 120);
@@ -96,16 +93,16 @@
     dir.position.set(5,8,2);
     scene.add(dir);
 
-    // Ground ambience (far backdrop plane)
-    const groundGeo = new THREE.PlaneGeometry(400, 400);
-    const groundMat = new THREE.MeshPhongMaterial({ color: 0x12183a, shininess: 10, specular: 0x0 });
-    const ground = new THREE.Mesh(groundGeo, groundMat);
+    // Ground ambience
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(400, 400),
+      new THREE.MeshPhongMaterial({ color: 0x12183a, shininess: 10, specular: 0x0 })
+    );
     ground.rotation.x = -Math.PI/2;
     ground.position.y = -20;
     scene.add(ground);
 
-    // ------- Player: Block Man (group) -------
-    // Dimensions (approx): width 0.6, height 1.6, depth 0.6
+    // ------- Player: Blockman -------
     const playerGroup = new THREE.Group();
 
     // Palette
@@ -113,48 +110,68 @@
     const legCol   = 0x8b6cff;   // purple
     const armCol   = 0xffa24d;   // orange
     const headCol  = 0xfff1cc;   // warm cream
-    const accentCol= 0x111422;
+    const hairCol  = 0x1b2038;   // dark hair
+    const backEye  = 0x99a3ff;   // soft blue back-eyes
 
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.0, 0.4), new THREE.MeshStandardMaterial({ color: torsoCol, roughness: 0.45, metalness: 0.08 }));
+    // Body
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.0, 0.4),
+      new THREE.MeshStandardMaterial({ color: torsoCol, roughness: 0.45, metalness: 0.08 }));
     body.position.y = 0.8;
 
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), new THREE.MeshStandardMaterial({ color: headCol, roughness: 0.55, metalness: 0.05 }));
+    // Head
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5),
+      new THREE.MeshStandardMaterial({ color: headCol, roughness: 0.55, metalness: 0.05 }));
     head.position.y = 1.35;
 
-    // Eyes (two tiny dark cubes on face)
-    const eyeMat = new THREE.MeshStandardMaterial({ color: 0x1c2038, roughness: 0.4, metalness: 0.1 });
-    const eyeL = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, 0.07), eyeMat);
+    // Front face eyes
+    const eyeMatFront = new THREE.MeshStandardMaterial({ color: 0x1c2038, roughness: 0.4, metalness: 0.1 });
+    const eyeL = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, 0.07), eyeMatFront);
     const eyeR = eyeL.clone();
     eyeL.position.set(-0.12, 1.40, 0.26);
     eyeR.position.set( 0.12, 1.40, 0.26);
 
-    // Arms (single segment each)
-    const armL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.7, 0.18), new THREE.MeshStandardMaterial({ color: armCol, roughness: 0.45, metalness: 0.08 }));
+    // Hair cap (back/top) + hair stripe
+    const hairCap = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.28, 0.32),
+      new THREE.MeshStandardMaterial({ color: hairCol, roughness: 0.6, metalness: 0.08 }));
+    hairCap.position.set(0, 1.46, -0.05);
+
+    const hairStripe = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.06, 0.4),
+      new THREE.MeshStandardMaterial({ color: hairCol, roughness: 0.6, metalness: 0.08 }));
+    hairStripe.position.set(0, 1.52, -0.02);
+
+    // Back-of-head “eyes” tucked under hair (fun detail)
+    const backEyeMat = new THREE.MeshStandardMaterial({ color: backEye, roughness: 0.35, metalness: 0.15 });
+    const backEyeL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.06), backEyeMat);
+    const backEyeR = backEyeL.clone();
+    backEyeL.position.set(-0.12, 1.40, -0.26);
+    backEyeR.position.set( 0.12, 1.40, -0.26);
+
+    // Arms
+    const armL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.7, 0.18),
+      new THREE.MeshStandardMaterial({ color: armCol, roughness: 0.45, metalness: 0.08 }));
     const armR = armL.clone();
     armL.position.set(-0.44, 0.85, 0);
     armR.position.set( 0.44, 0.85, 0);
 
     // Legs
-    const legL = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.6, 0.22), new THREE.MeshStandardMaterial({ color: legCol, roughness: 0.5, metalness: 0.05 }));
+    const legL = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.6, 0.22),
+      new THREE.MeshStandardMaterial({ color: legCol, roughness: 0.5, metalness: 0.05 }));
     const legR = legL.clone();
     legL.position.set(-0.18, 0.3, 0);
     legR.position.set( 0.18, 0.3, 0);
 
-    // Cute backpack accent
-    const pack = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.48, 0.16), new THREE.MeshStandardMaterial({ color: accentCol, roughness:0.6, metalness:0.05 }));
-    pack.position.set(0, 0.95, -0.28);
-
-    playerGroup.add(body, head, eyeL, eyeR, armL, armR, legL, legR, pack);
+    playerGroup.add(body, head, eyeL, eyeR, hairCap, hairStripe, backEyeL, backEyeR, armL, armR, legL, legR);
     scene.add(playerGroup);
 
-    // Shadow plane under player (fake soft shadow)
-    const shadowGeo = new THREE.CircleGeometry(0.6, 24);
-    const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent:true, opacity:0.25 });
-    const shadow = new THREE.Mesh(shadowGeo, shadowMat);
+    // Shadow
+    const shadow = new THREE.Mesh(
+      new THREE.CircleGeometry(0.6, 24),
+      new THREE.MeshBasicMaterial({ color: 0x000000, transparent:true, opacity:0.25 })
+    );
     shadow.rotation.x = -Math.PI/2;
     scene.add(shadow);
 
-    // Player half extents for landing math
+    // Player extents for landing
     const playerHalf = { x: 0.3, y: 0.8, z: 0.3 };
 
     // ------- Platforms -------
@@ -164,9 +181,7 @@
     const mats = [platMatA, platMatB];
 
     function makePlatform(w=2, h=0.3, d=2, x=0, y=0, z=0, mat=platMatA){
-      const g = new THREE.BoxGeometry(w, h, d);
-      const m = mat.clone();
-      const mesh = new THREE.Mesh(g, m);
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat.clone());
       mesh.position.set(x, y, z);
       mesh.userData = { w, h, d };
       scene.add(mesh);
@@ -174,9 +189,9 @@
       return mesh;
     }
 
-    // Start with a MUCH LONGER & WIDER initial platform for prep time (w=4, d=8)
-    let seedZ = -8; // next platforms start after this pad
-    const startPlat = makePlatform(4.0, 0.3, 8.0, 0, 0.6, 0, platMatA); // big safe start
+    // Long start platform + FORCED BIG GAP after it
+    const startPlat = makePlatform(4.0, 0.3, 8.0, 0, 0.6, 0, platMatA);
+    let seedZ = -16; // start next platforms well beyond the first (-8 front edge - big gap)
 
     function addChunk(n=8){
       for(let i=0;i<n;i++){
@@ -191,27 +206,27 @@
     }
     addChunk(14);
 
-    // ------- Game state -------
+    // ------- State -------
     const state = {
       running:false,
       score:0,
       best: parseInt(localStorage.getItem('obby3d_best') || '0',10),
       zSpeed: 3.6,
       gravity: -20,
-      jumpVelocity: 8.75,
+      jumpVelocity: 8.9,
       vy: 0,
-      x: 0, y: 0, z: 2.0,     // temporary y; we set exact Y on resetGame()
+      x: 0, y: 0, z: 3.0,
       onPlatform: true,
       lastTime: 0,
       legPhase: 0
     };
 
-    // HUD hooks
+    // HUD
     const scoreEl = document.getElementById('score');
     const bestEl  = document.getElementById('best');
     bestEl.textContent = String(state.best);
 
-    // Overlay + buttons
+    // Overlay controls
     const overlay = document.getElementById('overlay');
     const playBtn = document.getElementById('playBtn');
     const restartBtn = document.getElementById('restartBtn');
@@ -219,7 +234,6 @@
     const summary = document.getElementById('summary');
     const shareBtn= document.getElementById('shareBtn');
 
-    // Robust overlay toggles (fixes Safari)
     function showOverlay(msg, withRestart=false){
       summary.textContent = msg;
       overlay.hidden = false;
@@ -234,15 +248,13 @@
       overlay.style.pointerEvents = 'none';
     }
 
-    // Compute topY helper
-    function platformTopY(p){ return p.position.y + (p.userData.h || 0.3)/2 + 0.001; }
+    // Helpers
+    const platformTopY = p => p.position.y + (p.userData.h || 0.3)/2 + 0.001;
 
-    // Place player exactly on top of the start platform
     function placeOnStart(){
-      const topY = platformTopY(startPlat);
       state.x = 0;
-      state.z = 2.0;  // inside the long pad (z range ≈ -4..+4)
-      state.y = topY + playerHalf.y;   // feet exactly at platform top
+      state.z = 3.0; // near the camera side of start platform
+      state.y = platformTopY(startPlat) + playerHalf.y;
       state.vy = 0;
       state.onPlatform = true;
     }
@@ -250,20 +262,18 @@
     function resetGame(){
       state.running = true;
       state.score = 0; scoreEl.textContent = '0';
-      state.zSpeed = 3.6; state.gravity = -20; state.jumpVelocity = 8.75;
+      state.zSpeed = 3.6; state.gravity = -20; state.jumpVelocity = 8.9;
       state.lastTime = performance.now();
       state.legPhase = 0;
 
-      // Rebuild platforms (keep the long start)
+      // Rebuild platforms keeping the big gap after start
       for (const p of platforms) scene.remove(p);
       platforms.length = 0;
-      seedZ = -8;
-      const newStart = makePlatform(4.0, 0.3, 8.0, 0, 0.6, 0, platMatA);
+      makePlatform(4.0, 0.3, 8.0, 0, 0.6, 0, platMatA);
+      seedZ = -16; // ensure big gap
       addChunk(14);
 
-      // Update reference + snap the player on top
       placeOnStart();
-
       hideOverlay();
     }
 
@@ -290,46 +300,45 @@
       if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); jump(); }
     }, {passive:false});
     window.addEventListener('pointerdown', e=>{
-      if (overlay.style.display !== 'none') return; // don't jump under overlay
+      if (overlay.style.display !== 'none') return;
       jump();
     });
 
     playBtn.onclick = resetGame;
     restartBtn.onclick = resetGame;
-    howBtn.onclick = () => alert("Tap/Space to jump.\nStart on a longer safe platform.\nReach the next platform to score.\nGaps get trickier—don't fall!");
+    howBtn.onclick = () => alert("Tap/Space to jump.\nStart on a longer safe platform.\nThere is a BIG first gap now.\nReach the next platform to score.");
 
-    // Share to WhatsApp
+    // Share
     shareBtn.onclick = () => {
       const url = location.href;
       const msg = `I scored ${state.best} in Obby 3D — Mini! Play: ${url}`;
       location.href = `https://wa.me/?text=${encodeURIComponent(msg)}`;
     };
 
+    // Camera follow
     function updateCamera(dt){
-      // Smooth follow with look-ahead
       const target = new THREE.Vector3(state.x, state.y + 2.2, state.z + 8.5);
       camera.position.lerp(target, Math.min(1, dt*2.5));
       camera.lookAt(state.x, state.y + 0.9, state.z - 2.0);
     }
 
-    // Robust landing: snap to platform if descending & within bounds (bigger tolerance)
+    // STRICT landing: no padding beyond platform edges (prevents “air walk” past edge)
     function checkLanding(px, py, pz){
       let landed = false;
       const feetY = py - playerHalf.y;
+
       for (let i=0;i<platforms.length;i++){
         const p = platforms[i];
         const w = p.userData.w, h = p.userData.h, d = p.userData.d;
         const minX = p.position.x - w/2, maxX = p.position.x + w/2;
-        const topY = p.position.y + h/2 + 0.001; // platform top
+        const topY = p.position.y + h/2 + 0.001;
         const minZ = p.position.z - d/2, maxZ = p.position.z + d/2;
 
-        const withinXZ = (px >= minX - playerHalf.x && px <= maxX + playerHalf.x &&
-                          pz >= minZ - playerHalf.z && pz <= maxZ + playerHalf.z);
+        // must be strictly within XZ bounds (no extra padding)
+        const withinXZ = (px >= minX && px <= maxX && pz >= minZ && pz <= maxZ);
 
-        // If inside XZ bounds and descending, snap feet to top when near it
         if (withinXZ && state.vy <= 0){
-          // generous tolerance so we never tunnel through at low FPS
-          const tolerance = 0.45;
+          const tolerance = 0.32; // vertical snap window
           if (feetY <= topY + 0.02 && feetY >= (topY - tolerance)){
             state.y = topY + playerHalf.y;
             state.vy = 0;
@@ -337,8 +346,8 @@
           }
         }
 
-        // Score when passing the front edge of a platform for the first time
-        if (!p.userData.passed && pz < (p.position.z - d/2 - 0.2)){
+        // Score when we pass the platform's front edge (movement toward -Z)
+        if (!p.userData.passed && pz < (minZ - 0.2)){
           p.userData.passed = true;
           state.score += 1; scoreEl.textContent = String(state.score);
           state.zSpeed = Math.min(7.5, state.zSpeed + 0.06);
@@ -348,9 +357,9 @@
       return landed;
     }
 
+    // Blockman anim
     function animateBlockMan(dt){
-      // Walk/run animation on ground; tucked pose in air
-      state.legPhase += dt * (state.onPlatform ? (2.5 + state.zSpeed*0.35) : 6.0);
+      state.legPhase += dt * (state.onPlatform ? (2.6 + state.zSpeed*0.35) : 6.0);
       const legSwing = state.onPlatform ? Math.sin(state.legPhase) * 0.55 : 0.12;
       const armSwing = state.onPlatform ? Math.sin(state.legPhase + Math.PI) * 0.65 : 0.18;
       const bob      = state.onPlatform ? Math.abs(Math.sin(state.legPhase))*0.035 : 0.0;
@@ -358,40 +367,48 @@
       body.position.y = 0.8 + bob;
       head.position.y = 1.35 + bob * 0.6;
 
-      // Rotate limbs around x for a cartoony jog
       armL.rotation.x = armSwing;
       armR.rotation.x = -armSwing;
       legL.rotation.x = legSwing;
       legR.rotation.x = -legSwing;
 
-      // Slight forward tilt when moving on ground; slight back tilt in air
       const targetTilt = state.onPlatform ? 0.08 : -0.05;
       playerGroup.rotation.x = THREE.MathUtils.lerp(playerGroup.rotation.x, targetTilt, 0.15);
     }
 
+    // Main loop
     function animate(now){
       requestAnimationFrame(animate);
       const dt = Math.min(0.033, (now - (state.lastTime||now))/1000);
       state.lastTime = now;
 
       if (state.running){
-        // Forward motion
         state.z -= state.zSpeed * dt;
-
-        // Gravity
         state.vy += state.gravity * dt;
         state.y += state.vy * dt;
 
-        // Landing/fall
+        const wasOn = state.onPlatform;
         state.onPlatform = checkLanding(state.x, state.y, state.z);
+
+        // If we stepped off the edge this frame, ensure we start falling
+        if (wasOn && !state.onPlatform && state.vy >= 0) {
+          state.vy = -0.01; // nudge downward so we don't "hover" a frame
+        }
+
         if (!state.onPlatform && state.y < -4) endGame();
+
+        // Cull far-behind platforms
+        for (let i=platforms.length-1; i>=0; i--){
+          if (platforms[i].position.z - state.z > 120){
+            scene.remove(platforms[i]);
+            platforms.splice(i,1);
+          }
+        }
       }
 
-      // Update block-man transform
       playerGroup.position.set(state.x, state.y, state.z);
       animateBlockMan(dt);
 
-      // Shadow follows and scales with height
       shadow.position.set(state.x, Math.max(0.05, state.y-0.85), state.z);
       const shadowScale = Math.max(0.35, 1.1 - (state.y-0.6)*0.25);
       shadow.scale.set(shadowScale, shadowScale, 1);
@@ -408,10 +425,8 @@
       camera.updateProjectionMatrix();
     });
 
-    // Place player correctly on first load so no instant fall
     placeOnStart();
-    // Show overlay on load
-    showOverlay("Start on a longer safe platform. Tap/Space to jump and reach the next platforms!");
+    showOverlay("Long start platform + BIG first gap. Tap/Space to jump and reach the next platforms!");
   </script>
 </body>
 </html>
