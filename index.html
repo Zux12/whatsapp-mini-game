@@ -136,8 +136,11 @@
     // Longer start platform (depth = 6) + fair first platform placed closer
     const startPlat = makePlatform(3.0, 0.3, 6.0, 0, 0.6, 0, platMatA); // centered at z=0; front edge at ~-3
     const firstPlat = makePlatform(2.4, 0.3, 2.2, 0.0, 1.0, -5.8, platMatB); // ~2.8 units ahead of the start’s edge
-    const secondPlat = makePlatform(2.2, 0.3, 2.0, 0.1, 1.1, -8.6, platMatA);
-// front edge of #2 is at -6.9; back edge of this one is ~ -7.6 … -7.5 → ~0.7–1.1 gap on edges, easy first real jump
+const d = 3.0;         // depth 3.0 (instead of 2.0)
+const frontEdge = -9.6; // keep where it was
+const centerZ = frontEdge + d/2; // new center so front stays put
+const secondPlat = makePlatform(2.2, 0.3, d, 0.1, 1.1, centerZ, platMatA);
+
 
 
    let seedZ = -9.6;  // continue just after the secondPlat
