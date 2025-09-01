@@ -15,6 +15,7 @@
   <link rel="icon" href="favicon.ico" />
 
   <style>
+    [hidden] { display: none !important; }
     :root { --bg:#0e1024; --fg:#e9ecff; --muted:#8b90b6; --accent:#69e08a; }
     html,body{height:100%; margin:0; background:radial-gradient(120vmax 120vmax at 50% -20%, #161a3a, var(--bg) 55%); color:var(--fg); font-family:system-ui,-apple-system,Segoe UI,Inter,Roboto,Arial,sans-serif; overflow:hidden;}
     #hud{
@@ -179,12 +180,19 @@
     const shareBtn= document.getElementById('shareBtn');
 
     function showOverlay(msg, withRestart=false){
-      summary.textContent = msg;
-      overlay.hidden = false;
-      playBtn.style.display = withRestart ? 'none' : 'inline-block';
-      restartBtn.style.display = withRestart ? 'inline-block' : 'none';
-    }
-    function hideOverlay(){ overlay.hidden = true; }
+  summary.textContent = msg;
+  overlay.hidden = false;
+  overlay.style.display = 'flex';     // ensure it shows
+  overlay.style.pointerEvents = 'auto';
+  playBtn.style.display = withRestart ? 'none' : 'inline-block';
+  restartBtn.style.display = withRestart ? 'inline-block' : 'none';
+}
+
+function hideOverlay(){
+  overlay.hidden = true;
+  overlay.style.display = 'none';     // ensure it hides
+  overlay.style.pointerEvents = 'none';
+}
 
     function resetGame(){
       // Reset state
