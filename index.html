@@ -67,7 +67,7 @@
         <button id="restartBtn" class="btn" style="display:none">↻ Restart</button>
         <button id="howBtn" class="btn secondary">How to play</button>
       </div>
-      <p id="hint">Tap anywhere or press Space to jump. Reach farther platforms to gain score.R2</p>
+      <p id="hint">Tap anywhere or press Space to jump. Reach farther platforms to gain score.</p>
     </div>
   </div>
 
@@ -118,7 +118,7 @@
     shadow.rotation.x = -Math.PI/2;
     scene.add(shadow);
 
-    // ------- Platforms -------
+    // ------- Platforms & helpers -------
     const platforms = [];
     const platMatA = new THREE.MeshStandardMaterial({ color: 0x69e08a, roughness: 0.5, metalness: 0.05 });
     const platMatB = new THREE.MeshStandardMaterial({ color: 0x52b8f2, roughness: 0.5, metalness: 0.05 });
@@ -133,56 +133,76 @@
       return mesh;
     }
 
-    // Longer start platform (depth = 6) + fair first platform placed closer
-    const startPlat = makePlatform(3.0, 0.3, 6.0, 0, 0.6, 0, platMatA); // centered at z=0; front edge at ~-3
-    const firstPlat = makePlatform(2.4, 0.3, 2.2, 0.0, 1.0, -5.8, platMatB); // ~2.8 units ahead of the start’s edge
-const oldDepth   = 2.0;
-const extraFront = 1.5;        // grow forward by 1.0
-const backEdge   = -7.6;       // keep this fixed (from your original)
-const newDepth   = oldDepth + extraFront;          // 3.0
-const newCenterZ = backEdge - newDepth / 2;        // -7.6 - 1.5 = -9.1
+    // Place by back/front edges (so we control edge-to-edge gap)
+    function makePlatformByEdges(width, height, backEdgeZ, frontEdgeZ, x, y, mat){
+      const d = Math.abs(backEdgeZ - frontEdgeZ);
+      const centerZ = (backEdgeZ + frontEdgeZ) / 2;
+      return makePlatform(width, height, d, x, y, centerZ, mat);
+    }
+    const frontEdgeOf = p => p.position.z - p.userData.d/2; // towards -Z
+    const backEdgeOf  = p => p.position.z + p.userData.d/2; // towards +Z
 
-// replace the old secondPlat line with:
-const secondPlat = makePlatform(2.2, 0.3, newDepth, 0.1, 1.1, newCenterZ, platMatA);
-
-
-
-
-   let seedZ = -9.6;  // continue just after the secondPlat
-function addChunk(n=12){
-  for (let i=0; i<n; i++){
-    const w = THREE.MathUtils.randFloat(1.5, 3.0);
-    const d = THREE.MathUtils.randFloat(1.8, 2.5);
-    const y = THREE.MathUtils.randFloat(0.6, 1.6);
-    const x = THREE.MathUtils.randFloatSpread(2.2);
-    seedZ -= THREE.MathUtils.randFloat(2.4, 3.2);   // was 2.6..3.6
-    const mat = mats[(Math.random()*mats.length)|0];
-    makePlatform(w, 0.3, d, x, y, seedZ, mat);
-  }
-}
-
-    addChunk(14);
-
-    // ------- State -------
+    // Physics (kept the same; range ≈ 3.1 units early game)
     const state = {
       running:false,
       score:0,
       best: parseInt(localStorage.getItem('obby3d_best') || '0',10),
       zSpeed: 3.6,
-      gravity: -30,
-      jumpVelocity: 9.5,
+      gravity: -20,
+      jumpVelocity: 8.6,
       vy: 0,
       x: 0, y: 0, z: 2.0,
       onPlatform: true,
       lastTime: 0
     };
 
-    // HUD
+    // Reachable gap (conservative), we’ll keep early gaps ≤ this
+    const MAX_GAP = state.zSpeed * (2*state.jumpVelocity/Math.abs(state.gravity)) - 0.4; // ≈ 2.7
+    // We'll use gaps in [1.6 .. 2.6] which is under MAX_GAP
+
+    // Layout: longer start, then 1st & 2nd platforms with controlled gaps, then generated
+    const startPlat = makePlatform(3.2, 0.3, 6.0, 0, 0.6, 0, platMatA);   // z-front ≈ -3.0
+    const gap1 = 2.0; // start → first gap
+    const firstBack = frontEdgeOf(startPlat) - gap1; // back edge of first platform
+    // First platform depth ~2.2
+    const firstDepth = 2.2;
+    const firstFront = firstBack - firstDepth;
+    const firstPlat = makePlatformByEdges(2.4, 0.3, firstBack, firstFront, 0.0, 1.0, platMatB);
+
+    // Second platform (third overall): reachable gap
+    const gap2 = 2.2; // first → second gap (reachable)
+    const secondBack = frontEdgeOf(firstPlat) - gap2;
+    const secondDepth = 2.2;
+    const secondFront = secondBack - secondDepth;
+    const secondPlat = makePlatformByEdges(2.2, 0.3, secondBack, secondFront, 0.1, 1.05, platMatA);
+
+    // Procedural generator that respects a max gap from the last platform’s front edge
+    let lastFront = frontEdgeOf(secondPlat);
+    function addChunk(n=12){
+      for (let i=0;i<n;i++){
+        // Choose a safe, reachable edge-to-edge gap
+        const gap = THREE.MathUtils.randFloat(1.6, Math.min(2.6, MAX_GAP));
+        // Choose platform size & height
+        const w = THREE.MathUtils.randFloat(1.6, 3.0);
+        const d = THREE.MathUtils.randFloat(1.8, 2.5);
+        const y = THREE.MathUtils.randFloat(0.6, 1.5); // keep early heights friendly
+        const x = THREE.MathUtils.randFloatSpread(2.0);
+
+        const backEdge = lastFront - gap;     // place its back edge this far ahead
+        const frontEdge = backEdge - d;       // depth extends forward
+        const mat = mats[(Math.random()*mats.length)|0];
+        const p = makePlatformByEdges(w, 0.3, backEdge, frontEdge, x, y, mat);
+
+        lastFront = frontEdgeOf(p);           // update for the next platform
+      }
+    }
+    addChunk(14);
+
+    // ------- HUD / overlay -------
     const scoreEl = document.getElementById('score');
     const bestEl  = document.getElementById('best');
     bestEl.textContent = String(state.best);
 
-    // Overlay controls
     const overlay = document.getElementById('overlay');
     const playBtn = document.getElementById('playBtn');
     const restartBtn = document.getElementById('restartBtn');
@@ -215,20 +235,36 @@ function addChunk(n=12){
       state.onPlatform = true;
     }
 
+    function rebuildLevel(){
+      // remove existing
+      for (const p of platforms) scene.remove(p);
+      platforms.length = 0;
+
+      // rebuild start/first/second with the same deterministic gaps
+      const s = makePlatform(3.2, 0.3, 6.0, 0, 0.6, 0, platMatA);
+      const g1 = 2.0;
+      const fb = frontEdgeOf(s) - g1;
+      const fd = 2.2;
+      const ff = fb - fd;
+      const f = makePlatformByEdges(2.4, 0.3, fb, ff, 0.0, 1.0, platMatB);
+
+      const g2 = 2.2;
+      const sb = frontEdgeOf(f) - g2;
+      const sd = 2.2;
+      const sf = sb - sd;
+      const sp = makePlatformByEdges(2.2, 0.3, sb, sf, 0.1, 1.05, platMatA);
+
+      lastFront = frontEdgeOf(sp);
+      addChunk(14);
+    }
+
     function resetGame(){
       state.running = true;
       state.score = 0; scoreEl.textContent = '0';
       state.zSpeed = 3.6; state.gravity = -20; state.jumpVelocity = 8.6;
       state.lastTime = performance.now();
 
-      // Rebuild platforms with same initial layout
-      for (const p of platforms) scene.remove(p);
-      platforms.length = 0;
-      makePlatform(3.0, 0.3, 6.0, 0, 0.6, 0, platMatA);
-      makePlatform(2.4, 0.3, 2.2, 0.0, 1.0, -5.8, platMatB);
-      seedZ = -9.0;
-      addChunk(14);
-
+      rebuildLevel();
       placeOnStart();
       hideOverlay();
     }
@@ -262,7 +298,7 @@ function addChunk(n=12){
 
     playBtn.onclick = resetGame;
     restartBtn.onclick = resetGame;
-    howBtn.onclick = () => alert("Tap/Space to jump.\nLonger first platform gives you time.\nFirst jump is fair.\nReach the next platforms to score!");
+    howBtn.onclick = () => alert("Tap/Space to jump.\nGaps are auto-capped to be reachable.\nScore by passing platforms. Good luck!");
 
     // Share
     shareBtn.onclick = () => {
@@ -363,7 +399,7 @@ function addChunk(n=12){
     });
 
     placeOnStart();
-    showOverlay("Longer first platform. First jump is closer. Tap/Space to play!");
+    showOverlay("Gaps are auto-capped so each jump is reachable. Tap/Space to play!");
   </script>
 </body>
 </html>
