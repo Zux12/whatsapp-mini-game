@@ -123,14 +123,14 @@
       new THREE.MeshStandardMaterial({ color: headCol, roughness: 0.55, metalness: 0.05 }));
     head.position.y = 1.35;
 
-    // Front face eyes
+    // Front eyes
     const eyeMatFront = new THREE.MeshStandardMaterial({ color: 0x1c2038, roughness: 0.4, metalness: 0.1 });
     const eyeL = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, 0.07), eyeMatFront);
     const eyeR = eyeL.clone();
     eyeL.position.set(-0.12, 1.40, 0.26);
     eyeR.position.set( 0.12, 1.40, 0.26);
 
-    // Hair cap (back/top) + hair stripe
+    // Hair cap + stripe
     const hairCap = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.28, 0.32),
       new THREE.MeshStandardMaterial({ color: hairCol, roughness: 0.6, metalness: 0.08 }));
     hairCap.position.set(0, 1.46, -0.05);
@@ -139,7 +139,7 @@
       new THREE.MeshStandardMaterial({ color: hairCol, roughness: 0.6, metalness: 0.08 }));
     hairStripe.position.set(0, 1.52, -0.02);
 
-    // Back-of-head “eyes” tucked under hair (fun detail)
+    // Back-of-head “eyes”
     const backEyeMat = new THREE.MeshStandardMaterial({ color: backEye, roughness: 0.35, metalness: 0.15 });
     const backEyeL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.06), backEyeMat);
     const backEyeR = backEyeL.clone();
@@ -189,17 +189,20 @@
       return mesh;
     }
 
-    // Long start platform + FORCED BIG GAP after it
+    // Start platform
     const startPlat = makePlatform(4.0, 0.3, 8.0, 0, 0.6, 0, platMatA);
-    let seedZ = -16; // start next platforms well beyond the first (-8 front edge - big gap)
+    // First gap is **smaller now**; first “real” platform placed manually closer
+    const firstPlat = makePlatform(2.4, 0.3, 2.2, 0.1, 1.0, -6.0, platMatB);
 
+    // Generate more ahead (moderate spacing)
+    let seedZ = -9.0; // was -16 (too far) — now closer
     function addChunk(n=8){
       for(let i=0;i<n;i++){
-        const w = THREE.MathUtils.randFloat(1.4, 3.0);
+        const w = THREE.MathUtils.randFloat(1.5, 3.0);
         const d = THREE.MathUtils.randFloat(1.8, 2.5);
         const y = THREE.MathUtils.randFloat(0.6, 1.6);
         const x = THREE.MathUtils.randFloatSpread(2.2);
-        seedZ -= THREE.MathUtils.randFloat(2.8, 4.8);
+        seedZ -= THREE.MathUtils.randFloat(2.6, 3.6); // tighter spacing
         const mat = mats[(Math.random()*mats.length)|0];
         makePlatform(w, 0.3, d, x, y, seedZ, mat);
       }
@@ -253,7 +256,7 @@
 
     function placeOnStart(){
       state.x = 0;
-      state.z = 3.0; // near the camera side of start platform
+      state.z = 3.0; // near camera edge of start platform
       state.y = platformTopY(startPlat) + playerHalf.y;
       state.vy = 0;
       state.onPlatform = true;
@@ -266,11 +269,12 @@
       state.lastTime = performance.now();
       state.legPhase = 0;
 
-      // Rebuild platforms keeping the big gap after start
+      // Rebuild: start + firstPlat + chunks
       for (const p of platforms) scene.remove(p);
       platforms.length = 0;
       makePlatform(4.0, 0.3, 8.0, 0, 0.6, 0, platMatA);
-      seedZ = -16; // ensure big gap
+      makePlatform(2.4, 0.3, 2.2, 0.1, 1.0, -6.0, platMatB);
+      seedZ = -9.0;
       addChunk(14);
 
       placeOnStart();
@@ -306,7 +310,7 @@
 
     playBtn.onclick = resetGame;
     restartBtn.onclick = resetGame;
-    howBtn.onclick = () => alert("Tap/Space to jump.\nStart on a longer safe platform.\nThere is a BIG first gap now.\nReach the next platform to score.");
+    howBtn.onclick = () => alert("Tap/Space to jump.\nLong start platform. First platform is now closer.\nNo hovering at the edge—mind the gap!");
 
     // Share
     shareBtn.onclick = () => {
@@ -322,7 +326,8 @@
       camera.lookAt(state.x, state.y + 0.9, state.z - 2.0);
     }
 
-    // STRICT landing: no padding beyond platform edges (prevents “air walk” past edge)
+    // STRICT landing with edge margin (prevents “hover” past edge)
+    const EDGE_MARGIN = 0.03; // shrink landing area near edges
     function checkLanding(px, py, pz){
       let landed = false;
       const feetY = py - playerHalf.y;
@@ -330,15 +335,17 @@
       for (let i=0;i<platforms.length;i++){
         const p = platforms[i];
         const w = p.userData.w, h = p.userData.h, d = p.userData.d;
-        const minX = p.position.x - w/2, maxX = p.position.x + w/2;
+        const minX = p.position.x - w/2 + EDGE_MARGIN;
+        const maxX = p.position.x + w/2 - EDGE_MARGIN;
         const topY = p.position.y + h/2 + 0.001;
-        const minZ = p.position.z - d/2, maxZ = p.position.z + d/2;
+        const minZ = p.position.z - d/2 + EDGE_MARGIN;
+        const maxZ = p.position.z + d/2 - EDGE_MARGIN;
 
-        // must be strictly within XZ bounds (no extra padding)
+        // must be strictly within shrunken XZ bounds
         const withinXZ = (px >= minX && px <= maxX && pz >= minZ && pz <= maxZ);
 
         if (withinXZ && state.vy <= 0){
-          const tolerance = 0.32; // vertical snap window
+          const tolerance = 0.28; // small snap window
           if (feetY <= topY + 0.02 && feetY >= (topY - tolerance)){
             state.y = topY + playerHalf.y;
             state.vy = 0;
@@ -346,12 +353,19 @@
           }
         }
 
-        // Score when we pass the platform's front edge (movement toward -Z)
-        if (!p.userData.passed && pz < (minZ - 0.2)){
+        // Score when we pass platform's front edge (movement toward -Z)
+        if (!p.userData.passed && pz < (p.position.z - d/2 - 0.2)){
           p.userData.passed = true;
           state.score += 1; scoreEl.textContent = String(state.score);
           state.zSpeed = Math.min(7.5, state.zSpeed + 0.06);
           if ((state.score % 6) === 0) addChunk(6);
+        }
+
+        // If we've crossed the front edge even slightly, force a fall (no hovering)
+        if (pz < (p.position.z - d/2)) {
+          // ensure we're not re-clamped accidentally next frame
+          if (landed && feetY > topY + 0.01) landed = false;
+          if (state.vy > -1) state.vy = -1.2; // nudge downward
         }
       }
       return landed;
@@ -390,9 +404,8 @@
         const wasOn = state.onPlatform;
         state.onPlatform = checkLanding(state.x, state.y, state.z);
 
-        // If we stepped off the edge this frame, ensure we start falling
         if (wasOn && !state.onPlatform && state.vy >= 0) {
-          state.vy = -0.01; // nudge downward so we don't "hover" a frame
+          state.vy = -0.02; // ensure we start falling immediately after edge
         }
 
         if (!state.onPlatform && state.y < -4) endGame();
@@ -426,7 +439,7 @@
     });
 
     placeOnStart();
-    showOverlay("Long start platform + BIG first gap. Tap/Space to jump and reach the next platforms!");
+    showOverlay("Long start platform. First platform is now closer. No edge-hover — mind the gap! Tap/Space to jump.");
   </script>
 </body>
 </html>
