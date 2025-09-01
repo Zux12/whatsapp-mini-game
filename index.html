@@ -104,19 +104,36 @@
     ground.position.y = -20;
     scene.add(ground);
 
-    // ------- Player (sphere) -------
-    const playerRadius = 0.4;
-    const playerGeo = new THREE.SphereGeometry(playerRadius, 24, 20);
-    const playerMat = new THREE.MeshStandardMaterial({ color: 0xe6e7ff, roughness: 0.4, metalness: 0.0 });
-    const player = new THREE.Mesh(playerGeo, playerMat);
-    scene.add(player);
+    // ------- Player: Block Man (group) -------
+    // Dimensions (approx): width 0.6, height 1.6, depth 0.6
+    const playerGroup = new THREE.Group();
+
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0xE6E7FF, roughness: 0.5, metalness: 0.05 });
+    const headMat = new THREE.MeshStandardMaterial({ color: 0xC7CBFF, roughness: 0.5, metalness: 0.05 });
+    const legMat  = new THREE.MeshStandardMaterial({ color: 0x8ad4ff, roughness: 0.5, metalness: 0.05 });
+
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.0, 0.4), bodyMat);
+    body.position.y = 0.8; // center of body
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), headMat);
+    head.position.y = 1.35;
+
+    const legL = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.6, 0.22), legMat);
+    const legR = legL.clone();
+    legL.position.set(-0.18, 0.3, 0);
+    legR.position.set( 0.18, 0.3, 0);
+
+    playerGroup.add(body, head, legL, legR);
+    scene.add(playerGroup);
 
     // Shadow plane under player (fake soft shadow)
-    const shadowGeo = new THREE.CircleGeometry(0.55, 24);
+    const shadowGeo = new THREE.CircleGeometry(0.6, 24);
     const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent:true, opacity:0.25 });
     const shadow = new THREE.Mesh(shadowGeo, shadowMat);
     shadow.rotation.x = -Math.PI/2;
     scene.add(shadow);
+
+    // Player bounds (for landing)
+    const playerHalf = { x: 0.3, y: 0.8, z: 0.3 }; // half extents
 
     // ------- Platforms -------
     const platforms = [];
@@ -135,8 +152,10 @@
       return mesh;
     }
 
-    let seedZ = -2;
-    makePlatform(2.2,0.3,2.2, 0, 0.6, 0, platMatA);
+    // Start with a MUCH LONGER & WIDER initial platform for prep time
+    // (w=4.0, d=8.0) and shift next chunks farther forward
+    let seedZ = -8; // next platforms will start after this long start pad
+    makePlatform(4.0, 0.3, 8.0, 0, 0.6, 0, platMatA); // big safe start
 
     function addChunk(n=8){
       for(let i=0;i<n;i++){
@@ -144,7 +163,7 @@
         const d = THREE.MathUtils.randFloat(1.8, 2.5);
         const y = THREE.MathUtils.randFloat(0.6, 1.6);
         const x = THREE.MathUtils.randFloatSpread(2.2);
-        seedZ -= THREE.MathUtils.randFloat(2.5, 4.2);
+        seedZ -= THREE.MathUtils.randFloat(2.8, 4.8);
         const mat = mats[(Math.random()*mats.length)|0];
         makePlatform(w, 0.3, d, x, y, seedZ, mat);
       }
@@ -160,9 +179,10 @@
       gravity: -20,
       jumpVelocity: 8.5,
       vy: 0,
-      x: 0, y: 1.0, z: 1.0,
-      onPlatform: false,
-      lastTime: 0
+      x: 0, y: 1.2, z: 2.0,   // start a bit forward on the big platform
+      onPlatform: true,
+      lastTime: 0,
+      legPhase: 0
     };
 
     // HUD hooks
@@ -197,14 +217,15 @@
       state.running = true;
       state.score = 0; scoreEl.textContent = '0';
       state.zSpeed = 3.6; state.gravity = -20; state.jumpVelocity = 8.5;
-      state.vy = 0; state.x = 0; state.y = 1.0; state.z = 1.0;
-      state.onPlatform = false; state.lastTime = performance.now();
+      state.vy = 0; state.x = 0; state.y = 1.2; state.z = 2.0;
+      state.onPlatform = true; state.lastTime = performance.now();
+      state.legPhase = 0;
 
-      // Rebuild platforms
+      // Rebuild platforms (keep the long start)
       for (const p of platforms) scene.remove(p);
       platforms.length = 0;
-      seedZ = -2;
-      makePlatform(2.2,0.3,2.2, 0, 0.6, 0, platMatA);
+      seedZ = -8;
+      makePlatform(4.0, 0.3, 8.0, 0, 0.6, 0, platMatA);
       addChunk(14);
 
       hideOverlay();
@@ -239,7 +260,7 @@
 
     playBtn.onclick = resetGame;
     restartBtn.onclick = resetGame;
-    howBtn.onclick = () => alert("Tap/Space to jump.\nReach the next platform to score.\nGaps get trickier—don't fall!");
+    howBtn.onclick = () => alert("Tap/Space to jump.\nStart on a longer safe platform.\nReach the next platform to score.\nGaps get trickier—don't fall!");
 
     // Share to WhatsApp
     shareBtn.onclick = () => {
@@ -249,29 +270,35 @@
     };
 
     function updateCamera(dt){
+      // Keep camera gently following; slight look-ahead
       const target = new THREE.Vector3(state.x, state.y + 2.2, state.z + 8.5);
       camera.position.lerp(target, Math.min(1, dt*2.5));
-      camera.lookAt(state.x, state.y + 0.6, state.z - 2.0);
+      camera.lookAt(state.x, state.y + 0.9, state.z - 2.0);
     }
 
+    // AABB landing check with block-man feet
     function checkLanding(px, py, pz){
       let landed = false;
+      const feetY = py - playerHalf.y;
       for (let i=0;i<platforms.length;i++){
         const p = platforms[i];
         const w = p.userData.w, h = p.userData.h, d = p.userData.d;
+
         const minX = p.position.x - w/2, maxX = p.position.x + w/2;
         const topY = p.position.y + h/2 + 0.001;
         const minZ = p.position.z - d/2, maxZ = p.position.z + d/2;
 
-        const withinXZ = (px >= minX - playerRadius && px <= maxX + playerRadius &&
-                          pz >= minZ - playerRadius && pz <= maxZ + playerRadius);
+        const withinXZ = (px >= minX - playerHalf.x && px <= maxX + playerHalf.x &&
+                          pz >= minZ - playerHalf.z && pz <= maxZ + playerHalf.z);
 
-        if (withinXZ && state.vy <= 0 && (py - playerRadius) <= topY && (py - playerRadius) >= (topY - 0.25)){
-          state.y = topY + playerRadius;
+        // Landing if moving down and feet are just touching the top
+        if (withinXZ && state.vy <= 0 && feetY <= topY && feetY >= (topY - 0.25)){
+          state.y = topY + playerHalf.y;
           state.vy = 0;
           landed = true;
         }
 
+        // Score when passing the front edge of a platform for the first time
         if (!p.userData.passed && pz < (p.position.z - d/2 - 0.2)){
           p.userData.passed = true;
           state.score += 1; scoreEl.textContent = String(state.score);
@@ -282,32 +309,53 @@
       return landed;
     }
 
+    function animateBlockMan(dt){
+      // Simple leg swing while moving on platform; tuck in air
+      state.legPhase += dt * (state.onPlatform ? (2.5 + state.zSpeed*0.3) : 6.0);
+      const swing = state.onPlatform ? Math.sin(state.legPhase)*0.45 : 0.1;
+      const lift  = state.onPlatform ? 0 : 0.05;
+
+      // Legs swing opposite
+      // Rotate around x for "walk" look
+      // Also add a tiny body bob
+      body.position.y = 0.8 + (state.onPlatform ? Math.abs(Math.sin(state.legPhase))*0.03 : 0.0);
+      head.position.y = 1.35 + (state.onPlatform ? Math.abs(Math.sin(state.legPhase))*0.02 : 0.0);
+
+      // Leg pivots: apply rotation around x
+      legL.rotation.x = swing;
+      legR.rotation.x = -swing;
+      legL.position.y = 0.3 + lift;
+      legR.position.y = 0.3 + lift;
+
+      // Slight tilt forward when moving
+      playerGroup.rotation.x = THREE.MathUtils.lerp(playerGroup.rotation.x, state.onPlatform ? 0.08 : -0.05, 0.15);
+    }
+
     function animate(now){
       requestAnimationFrame(animate);
       const dt = Math.min(0.033, (now - (state.lastTime||now))/1000);
       state.lastTime = now;
 
       if (state.running){
+        // Forward motion
         state.z -= state.zSpeed * dt;
+
+        // Gravity
         state.vy += state.gravity * dt;
         state.y += state.vy * dt;
 
+        // Landing/fall
         state.onPlatform = checkLanding(state.x, state.y, state.z);
         if (!state.onPlatform && state.y < -4) endGame();
-
-        // Cull far-behind platforms (optional)
-        for (let i=platforms.length-1; i>=0; i--){
-          if (platforms[i].position.z - state.z > 120){
-            scene.remove(platforms[i]);
-            platforms.splice(i,1);
-          }
-        }
       }
 
-      player.position.set(state.x, state.y, state.z);
-      player.rotation.z += state.running ? 0.02 + state.zSpeed*0.002 : 0.0;
-      shadow.position.set(state.x, Math.max(0.05, state.y-0.45), state.z);
-      const shadowScale = Math.max(0.35, 1.0 - (state.y-0.6)*0.25);
+      // Update block-man transform
+      playerGroup.position.set(state.x, state.y, state.z);
+      animateBlockMan(dt);
+
+      // Shadow follows and scales with height
+      shadow.position.set(state.x, Math.max(0.05, state.y-0.85), state.z);
+      const shadowScale = Math.max(0.35, 1.1 - (state.y-0.6)*0.25);
       shadow.scale.set(shadowScale, shadowScale, 1);
 
       updateCamera(dt);
@@ -323,7 +371,7 @@
     });
 
     // Show overlay on load
-    showOverlay("Jump across floating platforms. Reach as far as you can!");
+    showOverlay("Start on a longer safe platform. Tap/Space to jump and reach the next platforms!");
   </script>
 </body>
 </html>
