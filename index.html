@@ -1,1 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Tap Dash — Mini Game</title>
+
+  <!-- Nice preview in WhatsApp/Twitter -->
+  <meta property="og:title" content="Tap Dash — Mini Game" />
+  <meta property="og:description" content="One-minute reflex runner. Can you beat 30?" />
+  <meta property="og:image" content="https://zux12.github.io/whatsapp-mini-game/preview.png" />
+  <meta property="og:url" content="https://zux12.github.io/whatsapp-mini-game/" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <link rel="icon" href="favicon.ico" />
+
+  <style>
+    :root { --bg:#0f1225; --fg:#e6e7ff; --accent:#6ae08a; --muted:#7b80a6; }
+    *{box-sizing:border-box} html,body{height:100%} body{
+      margin:0; background:radial-gradient(80vmax 80vmax at 50% -10%, #1a1f41 0%, var(--bg) 60%);
+      color:var(--fg); font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .wrap{width:100%; max-width:560px; padding:16px;}
+    .card{
+      background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06);
+      border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,0.35); padding:16px;
+    }
+    header{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px}
+    h1{font-size:20px; margin:0}
+    .muted{color:var(--muted); font-size:13px}
+    #game{width:100%; height:280px; background:#0b0e21; border-radius:14px; display:block}
+    .row{display:flex; gap:8px; align-items:center; margin-top:10px; flex-wrap:wrap}
+    button{
+      border:0; padding:12px 16px; border-radius:12px; cursor:pointer; font-weight:600;
+      background:var(--accent); color:#05260f; box-shadow:0 6px 14px rgba(106,224,138,.35);
+    }
+    button.secondary{background:#2b2f55; color:#d8dbff; box-shadow:none}
+    .pill{padding:8px 10px; border-radius:999px; background:#1a1f3f; font-variant-numeric:tabular-nums}
+    footer{margin-top:8px; text-align:center; font-size:12px; color:var(--muted)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <header>
+        <h1>Tap Dash</h1>
+        <div>
+          <span class="pill">Score: <b id="score">0</b></span>
+          <span class="pill">Best: <b id="best">0</b></span>
+          <span class="pill">Time: <b id="time">60</b>s</span>
+        </div>
+      </header>
+
+      <canvas id="game" width="560" height="280" aria-label="Tap Dash canvas"></canvas>
+
+      <div class="row">
+        <button id="playBtn">▶️ Play</button>
+        <button id="shareBtn" class="secondary">Share my score</button>
+        <span class="muted" id="hint">Tap screen to JUMP. Avoid the blocks.</span>
+      </div>
+
+      <footer>Runs entirely in your browser. No sign-in. High score is saved on this device.</footer>
+    </div>
+  </div>
+
+  <script>
+    // --- Simple runner: tap/click to jump; avoid obstacles; 60s timer ---
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const bestEl  = document.getElementById('best');
+    const timeEl  = document.getElementById('time');
+    const playBtn = document.getElementById('playBtn');
+    const shareBtn= document.getElementById('shareBtn');
+    const hintEl  = document.getElementById('hint');
+
+    // Maintain aspect on small screens
+    const resize = () => {
+      const w = Math.min(560, canvas.parentElement.clientWidth);
+      const ratio = 560/280;
+      canvas.width = w;
+      canvas.height = Math.round(w/ratio);
+    };
+    addEventListener('resize', resize, {passive:true}); resize();
+
+    const state = {
+      playing:false, score:0, best:parseInt(localStorage.getItem('tapdash_best')||'0',10),
+      tLeft:60, last:0, g:0.8, jumpV:-10, floor:0, player:null, blocks:[], speed:4
+    };
+    bestEl.textContent = state.best;
+
+    function resetRun() {
+      state.playing = true;
+      state.score   = 0;
+      state.tLeft   = 60;
+      state.blocks  = [];
+      state.speed   = 4;
+      state.floor   = canvas.height - 28;
+      state.player  = {x: 40, y: state.floor, v: 0, r: 12};
+      spawnBlock();
+      hintEl.textContent = 'Tap to jump!';
+    }
+
+    function spawnBlock() {
+      const gap = 140 + Math.random()*80;
+      const h = 18 + Math.random()*30;
+      const w = 18 + Math.random()*26;
+      const y = state.floor - h + 14; // sit on floor visually
+      const color = '#6ae08a';
+      state.blocks.push({x: canvas.width + gap, y, w, h, color});
+    }
+
+    function jump() {
+      if(!state.playing) return;
+      if (state.player.y >= state.floor - 1) state.player.v = state.jumpV;
+    }
+
+    canvas.addEventListener('pointerdown', jump);
+    addEventListener('keydown', e => { if(e.code==='Space'||e.code==='ArrowUp') jump(); });
+
+    playBtn.onclick = () => { if(!state.playing) resetRun(); };
+
+    function drawBackground() {
+      // ground
+      ctx.fillStyle = '#0a0d1f'; ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle = '#12163a'; ctx.fillRect(0, state.floor+14, canvas.width, canvas.height - state.floor);
+      // lane stripes
+      ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 2;
+      for (let x=0; x<canvas.width; x+=26){ ctx.beginPath(); ctx.moveTo(x, state.floor+10); ctx.lineTo(x+10, state.floor+10); ctx.stroke(); }
+    }
+
+    function step(now){
+      requestAnimationFrame(step);
+      if(!state.last) state.last = now;
+      const dt = Math.min(50, now - state.last); // ms cap
+      state.last = now;
+
+      drawBackground();
+
+      // Timer
+      if (state.playing){
+        state.tLeft -= dt/1000;
+        if (state.tLeft <= 0){
+          state.tLeft = 0;
+          endRun();
+        }
+      }
+      timeEl.textContent = Math.ceil(state.tLeft);
+
+      // Player physics
+      const p = state.player;
+      if (state.playing){
+        p.v += state.g;
+        p.y += p.v;
+        if (p.y > state.floor) { p.y = state.floor; p.v = 0; }
+      }
+      // Draw player
+      ctx.fillStyle = '#e6e7ff';
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
+
+      // Blocks
+      if (state.playing){
+        for (const b of state.blocks) { b.x -= state.speed; }
+        // Spawn new when first passes certain point
+        if (state.blocks.length < 3 && state.blocks[state.blocks.length-1].x < canvas.width - 160){
+          spawnBlock();
+          // slight difficulty ramp
+          state.speed = Math.min(9, state.speed + 0.08);
+        }
+        // Scoring: when block passes player
+        for (const b of state.blocks) {
+          if (!b.passed && b.x + b.w < p.x - p.r) { b.passed = true; state.score++; scoreEl.textContent = state.score; }
+        }
+        // Remove off-screen
+        state.blocks = state.blocks.filter(b => b.x + b.w > -20);
+      }
+
+      // Draw blocks + collision
+      for (const b of state.blocks){
+        ctx.fillStyle = b.color;
+        ctx.fillRect(b.x, b.y, b.w, b.h);
+        if (state.playing && circleRectCollide(p.x, p.y, p.r, b.x, b.y, b.w, b.h)){
+          flash('#ff6b6b'); endRun();
+        }
+      }
+
+      if (!state.playing) {
+        ctx.fillStyle = 'rgba(0,0,0,.35)';
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.fillStyle = '#fff'; ctx.textAlign='center';
+        ctx.font = '700 20px system-ui, -apple-system, Segoe UI';
+        ctx.fillText('Tap ▶️ Play, then tap to JUMP', canvas.width/2, canvas.height/2 - 6);
+        ctx.font = '600 16px system-ui, -apple-system, Segoe UI';
+        ctx.fillStyle = 'rgba(255,255,255,0.75)';
+        ctx.fillText('Avoid the green blocks for 60 seconds', canvas.width/2, canvas.height/2 + 20);
+      }
+    }
+    requestAnimationFrame(step);
+
+    function circleRectCollide(cx, cy, cr, rx, ry, rw, rh){
+      const closestX = clamp(cx, rx, rx + rw);
+      const closestY = clamp(cy, ry, ry + rh);
+      const dx = cx - closestX, dy = cy - closestY;
+      return (dx*dx + dy*dy) <= cr*cr;
+    }
+    const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+
+    function endRun(){
+      if (!state.playing) return;
+      state.playing = false;
+      hintEl.textContent = `Game over. Score ${state.score}. Press Play to try again.`;
+      if (state.score > state.best){
+        state.best = state.score;
+        localStorage.setItem('tapdash_best', String(state.best));
+        bestEl.textContent = state.best;
+      }
+    }
+    function flash(color){
+      const t = 120; // ms
+      canvas.style.boxShadow = `0 0 0 4px ${color} inset`;
+      setTimeout(()=>canvas.style.boxShadow='none', t);
+    }
+
+    // --- Share to WhatsApp ---
+    function waEncode(s){ return encodeURIComponent(s); }
+    shareBtn.onclick = () => {
+      const url = 'https://zux12.github.io/whatsapp-mini-game/';
+      const msg = `I scored ${state.best} in Tap Dash! Play: ${url}`;
+      location.href = `https://wa.me/?text=${waEncode(msg)}`;
+    };
+  </script>
+</body>
+</html>
 
